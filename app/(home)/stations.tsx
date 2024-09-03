@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput } from 'react-native';
-import { Audio } from 'expo-av';
+import { FlatList, ActivityIndicator } from 'react-native';
+import { Box, Text, Input, VStack, HStack, Button, Icon, Pressable } from 'native-base';
 import { Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface Station {
   stationuuid: string;
@@ -19,11 +21,14 @@ const StationsScreen = () => {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [favorites, setFavorites] = useState<Station[]>([]);
+  const [loading, setLoading] = useState<boolean>(true); // Added loading state
 
   const { country, language, genre } = useLocalSearchParams<{ country?: string; language?: string; genre?: string }>();
   const router = useRouter();
 
   useEffect(() => {
+    console.log("useEffect triggered with params:", { country, language, genre });
+
     if (country) {
       fetchStationsByCountry(country);
     } else if (language) {
@@ -38,35 +43,47 @@ const StationsScreen = () => {
         sound.unloadAsync().catch((error) => console.error("Error unloading sound:", error));
       }
     };
-  }, [sound, country, language, genre]);
+  }, [country, language, genre]);
 
   const fetchStationsByCountry = async (country: string) => {
+    setLoading(true); // Set loading to true before fetching
     try {
       const response = await fetch(`https://de1.api.radio-browser.info/json/stations/bycountry/${country}`);
       const data: Station[] = await response.json();
+      console.log("Stations fetched by country:", data);
       setStations(data);
     } catch (error) {
-      console.error("Error fetching stations:", error);
+      console.error("Error fetching stations by country:", error);
+    } finally {
+      setLoading(false); // Set loading to false after fetching
     }
   };
 
   const fetchStationsByLanguage = async (language: string) => {
+    setLoading(true); // Set loading to true before fetching
     try {
       const response = await fetch(`https://de1.api.radio-browser.info/json/stations/bylanguage/${language}`);
       const data: Station[] = await response.json();
+      console.log("Stations fetched by language:", data);
       setStations(data);
     } catch (error) {
-      console.error("Error fetching stations:", error);
+      console.error("Error fetching stations by language:", error);
+    } finally {
+      setLoading(false); // Set loading to false after fetching
     }
   };
 
   const fetchStationsByGenre = async (genre: string) => {
+    setLoading(true); // Set loading to true before fetching
     try {
       const response = await fetch(`https://de1.api.radio-browser.info/json/stations/bytag/${genre}`);
       const data: Station[] = await response.json();
+      console.log("Stations fetched by genre:", data);
       setStations(data);
     } catch (error) {
-      console.error("Error fetching stations:", error);
+      console.error("Error fetching stations by genre:", error);
+    } finally {
+      setLoading(false); // Set loading to false after fetching
     }
   };
 
@@ -150,140 +167,108 @@ const StationsScreen = () => {
   );
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>
-        Stations {country ? `in ${country}` : language ? `in ${language}` : genre ? `with genre ${genre}` : ''}
-      </Text>
-      <TextInput
-        style={styles.searchBar}
-        placeholder="Search stations..."
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        placeholderTextColor="#aaa"
-      />
-      <FlatList
-        data={filteredStations}
-        keyExtractor={(item) => item.stationuuid}
-        renderItem={({ item }) => {
-          const isFavorite = favorites.some(fav => fav.stationuuid === item.stationuuid);
-          return (
-            <TouchableOpacity style={styles.itemContainer} onPress={() => playRadio(item)}>
-              <Text style={styles.item}>{item.name}</Text>
-              <View style={styles.icons}>
-                <TouchableOpacity onPress={() => toggleFavorite(item)}>
-                  <Ionicons 
-                    name={isFavorite ? "heart" : "heart-outline"} 
-                    size={24} 
+    <Box flex={1}>
+      <LinearGradient
+        colors={['#145DA0', '#E91E63']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ flex: 1, paddingHorizontal: 16, paddingVertical: 24 }}
+      >
+        <VStack space={5}>
+          <Input
+            placeholder="Search stations..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor="gray.500"
+            bg="white"
+            borderRadius="full"
+            px="4"
+            py="3"
+            borderWidth={1}
+            borderColor="gray.300"
+            shadow="2"
+          />
+
+          {loading ? (
+            <Box flex={1} justifyContent="center" alignItems="center">
+              <ActivityIndicator size="large" color="#E91E63" />
+            </Box>
+          ) : (
+            <FlatList
+              data={filteredStations}
+              keyExtractor={(item) => item.stationuuid}
+              renderItem={({ item }) => {
+                const isFavorite = favorites.some(fav => fav.stationuuid === item.stationuuid);
+                return (
+                  <Pressable 
+                    onPress={() => playRadio(item)} 
+                    bg="white" 
+                    p="4" 
+                    mb="2" 
+                    borderRadius="lg" 
+                    shadow="2"
+                  >
+                    <HStack justifyContent="space-between" alignItems="center">
+                      <Text fontSize="lg" fontWeight="bold" color="#E91E63">{item.name}</Text>
+                      <HStack space={3} alignItems="center">
+                        <Pressable onPress={() => toggleFavorite(item)}>
+                          <Icon 
+                            as={Ionicons} 
+                            name={isFavorite ? "heart" : "heart-outline"} 
+                            size="6" 
+                            color="#E91E63" 
+                          />
+                        </Pressable>
+                        {selectedStation?.stationuuid === item.stationuuid && isPlaying && (
+                          <Icon as={Ionicons} name="volume-high" size="6" color="#E91E63" />
+                        )}
+                      </HStack>
+                    </HStack>
+                  </Pressable>
+                );
+              }}
+            />
+          )}
+
+          {selectedStation && (
+            <VStack space={3} bg="#E91E63" p="4" borderRadius="lg" shadow="2">
+              <Text fontSize="lg" fontWeight="bold" color="white">{selectedStation.name}</Text>
+              <Text fontSize="sm" color="white">{selectedStation.url}</Text>
+              <HStack justifyContent="space-between" mt="4">
+                <Pressable onPress={() => switchStation('prev')} p="3" borderRadius="full" bg="white">
+                  <Icon as={Ionicons} name="play-back" size="6" color="#E91E63" />
+                </Pressable>
+                <Pressable 
+                  onPress={() => {
+                    if (isPlaying) {
+                      sound?.pauseAsync();
+                      setIsPlaying(false);
+                    } else {
+                      sound?.playAsync();
+                      setIsPlaying(true);
+                    }
+                  }} 
+                  p="3" 
+                  borderRadius="full" 
+                  bg="white"
+                >
+                  <Icon 
+                    as={Ionicons} 
+                    name={isPlaying ? "pause" : "play"} 
+                    size="6" 
                     color="#E91E63" 
                   />
-                </TouchableOpacity>
-                {selectedStation?.stationuuid === item.stationuuid && isPlaying && (
-                  <Ionicons name="volume-high" size={24} color="#E91E63" />
-                )}
-              </View>
-            </TouchableOpacity>
-          );
-        }}
-      />
-      {selectedStation && (
-        <View style={styles.stationInfo}>
-          <Text style={styles.stationName}>{selectedStation.name}</Text>
-          <Text style={styles.stationUrl}>{selectedStation.url}</Text>
-          <View style={styles.controlPanel}>
-            <TouchableOpacity onPress={() => switchStation('prev')} style={styles.controlButton}>
-              <Ionicons name="play-back" size={32} color="white" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => playRadio(selectedStation)} style={styles.controlButton}>
-              <Ionicons name={isPlaying ? "pause" : "play"} size={32} color="white" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => switchStation('next')} style={styles.controlButton}>
-              <Ionicons name="play-forward" size={32} color="white" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-    </View>
+                </Pressable>
+                <Pressable onPress={() => switchStation('next')} p="3" borderRadius="full" bg="white">
+                  <Icon as={Ionicons} name="play-forward" size="6" color="#E91E63" />
+                </Pressable>
+              </HStack>
+            </VStack>
+          )}
+        </VStack>
+      </LinearGradient>
+    </Box>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 20,
-    paddingHorizontal: 20,
-    backgroundColor: '#f9f9f9',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 20,
-    color: '#E91E63',
-    textAlign: 'center',
-  },
-  searchBar: {
-    width: '100%',
-    padding: 12,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 10,
-    marginBottom: 20,
-    backgroundColor: '#fff',
-  },
-  itemContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 15,
-    marginVertical: 5,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  item: {
-    fontSize: 18,
-    color: '#333',
-  },
-  icons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  stationInfo: {
-    padding: 20,
-    backgroundColor: '#E91E63',
-    borderRadius: 10,
-    marginBottom: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  stationName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  stationUrl: {
-    fontSize: 16,
-    color: '#ddd',
-  },
-  controlPanel: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '60%',
-    marginTop: 20,
-  },
-  controlButton: {
-    padding: 10,
-    borderRadius: 50,
-    backgroundColor: '#333',
-    alignItems: 'center',
-  },
-});
 
 export default StationsScreen;
