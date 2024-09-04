@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput } from 'react-native';
-import { useRouter } from 'expo-router';
+import { FlatList, ActivityIndicator } from 'react-native';
+import { Box, Text, Input, VStack, HStack, Button, Icon, Pressable } from 'native-base';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface Country {
   name: string;
@@ -18,31 +20,50 @@ interface Genre {
   stationcount: number;
 }
 
+interface Station {
+  name: string;
+  votes: number;
+  country: string;
+  language: string;
+}
+
 const HomeScreen = () => {
   const [countries, setCountries] = useState<Country[]>([]);
   const [languages, setLanguages] = useState<Language[]>([]);
   const [genres, setGenres] = useState<Genre[]>([]);
+  const [recommended, setRecommended] = useState<Station[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [tab, setTab] = useState<'countries' | 'languages' | 'genres'>('countries');
+  const [tab, setTab] = useState<'countries' | 'languages' | 'genres' | 'recommended'>('countries');
+  const [loading, setLoading] = useState<boolean>(true);
   const router = useRouter();
 
   useEffect(() => {
     fetchCountries();
     fetchLanguages();
     fetchGenres();
+    fetchRecommended();
   }, []);
 
+  useEffect(() => {
+    // Clear search query when tab changes
+    setSearchQuery('');
+  }, [tab]);
+
   const fetchCountries = async () => {
+    setLoading(true);
     try {
       const response = await fetch('https://de1.api.radio-browser.info/json/countries');
       const data: Country[] = await response.json();
       setCountries(data);
     } catch (error) {
       console.error("Error fetching countries:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchLanguages = async () => {
+    setLoading(true);
     try {
       const response = await fetch('https://de1.api.radio-browser.info/json/languages');
       const data: Language[] = await response.json();
@@ -50,10 +71,13 @@ const HomeScreen = () => {
       setLanguages(sortedData);
     } catch (error) {
       console.error("Error fetching languages:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchGenres = async () => {
+    setLoading(true);
     try {
       const response = await fetch('https://de1.api.radio-browser.info/json/tags');
       if (!response.ok) {
@@ -68,6 +92,24 @@ const HomeScreen = () => {
       }
     } catch (error) {
       console.error("Error fetching genres:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchRecommended = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('https://de1.api.radio-browser.info/json/stations/topvote/100');
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      const jsonData: Station[] = await response.json();
+      setRecommended(jsonData);
+    } catch (error) {
+      console.error("Error fetching recommended stations:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -75,169 +117,143 @@ const HomeScreen = () => {
     if (searchQuery) {
       return countries.filter(country => country.name.toLowerCase().includes(searchQuery.toLowerCase()));
     }
-    return countries;
+    return countries.filter(country => country.name); // Remove items with empty names
   };
 
   const filterLanguages = () => {
     if (searchQuery) {
       return languages.filter(language => language.name.toLowerCase().includes(searchQuery.toLowerCase()));
     }
-    return languages;
+    return languages.filter(language => language.name); // Remove items with empty names
   };
 
   const filterGenres = () => {
     if (searchQuery) {
       return genres.filter(genre => genre.name.toLowerCase().includes(searchQuery.toLowerCase()));
     }
-    return genres;
+    return genres.filter(genre => genre.name); // Remove items with empty names
   };
 
-  const renderItem = (item: Country | Language | Genre) => {
+  const filterRecommended = () => {
+    if (searchQuery) {
+      return recommended.filter(station => station.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
+    return recommended;
+  };
+
+  const renderItem = (item: Country | Language | Genre | Station) => {
     if ('iso_3166_1' in item) {
-    
       return (
-        <TouchableOpacity 
-          style={styles.itemContainer} 
+        <Pressable 
           onPress={() => {
             router.push({ pathname: '/stations', params: { country: item.name } });
           }}>
-            
-          <Text style={styles.item}>{item.name}</Text>
-          <Ionicons name="chevron-forward-outline" size={20} color="#888" />
-        </TouchableOpacity>
+          <HStack justifyContent="space-between" alignItems="center" p="4" bg="white" borderRadius="lg" mb="2" shadow="2">
+            <Text fontSize="lg" fontWeight="bold" color="#E91E63">{item.name}</Text>
+            <Icon as={Ionicons} name="chevron-forward-outline" size="6" color="#E91E63" />
+          </HStack>
+        </Pressable>
       );
     } else if ('stationcount' in item) {
-      if ('iso_639' in item) {
-    
-        return (
-          <TouchableOpacity 
-            style={styles.itemContainer} 
-            onPress={() => {
-              router.push({ pathname: '/stations', params: { language: item.name } });
-            }}>
-            <Text style={styles.item}>{item.name}</Text>
-            <Ionicons name="chevron-forward-outline" size={20} color="#888" />
-          </TouchableOpacity>
-        );
-      } else {
-       
-        return (
-          <TouchableOpacity 
-            style={styles.itemContainer} 
-            onPress={() => {
-              router.push({ pathname: '/stations', params: { genre: item.name } });
-            }}>
-            <Text style={styles.item}>{item.name}</Text>
-            <Ionicons name="chevron-forward-outline" size={20} color="#888" />
-          </TouchableOpacity>
-        );
-      }
+      return (
+        <Pressable 
+          onPress={() => {
+            router.push({ pathname: '/stations', params: { [`${'stationcount' in item ? 'language' : 'genre'}`]: item.name } });
+          }}>
+          <HStack justifyContent="space-between" alignItems="center" p="4" bg="white" borderRadius="lg" mb="2" shadow="2">
+            <Text fontSize="lg" fontWeight="bold" color="#E91E63">{item.name}</Text>
+            <Icon as={Ionicons} name="chevron-forward-outline" size="6" color="#E91E63" />
+          </HStack>
+        </Pressable>
+      );
+    } else if ('votes' in item) {
+      return (
+        <Pressable 
+          onPress={() => {
+            router.push({
+              pathname: '/(player)',
+              params: {
+                selectedStation: JSON.stringify(item), // Pass the selected station as JSON
+                stations: JSON.stringify(recommended), // Pass all recommended stations as JSON
+              },
+            });
+          }}>
+          <HStack justifyContent="space-between" alignItems="center" p="4" bg="white" borderRadius="lg" mb="2" shadow="2">
+            <VStack>
+              <Text fontSize="lg" fontWeight="bold" color="#E91E63">{item.name}</Text>
+              <Text fontSize="md" color="gray.500">{item.country} - {item.language}</Text>
+            </VStack>
+            <Icon as={Ionicons} name="chevron-forward-outline" size="6" color="#E91E63" />
+          </HStack>
+        </Pressable>
+      );
     }
     return null;
   };
 
   return (
-    <View style={styles.container}>   
-    <View style={styles.searchview}>
-        <TextInput
-        style={styles.searchBar}
-        placeholder={`Search ${tab === 'countries' ? 'country' : tab === 'languages' ? 'language' : 'genre'}...`}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        placeholderTextColor="#aaa"
-      />
-      </View>
-      <View style={styles.tabContainer}>
-        <TouchableOpacity onPress={() => setTab('countries')} style={[styles.tab, tab === 'countries' && styles.activeTab]}>
-          <Text style={[styles.tabText, tab === 'countries' && styles.activeTabText]}>Countries</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setTab('languages')} style={[styles.tab, tab === 'languages' && styles.activeTab]}>
-          <Text style={[styles.tabText, tab === 'languages' && styles.activeTabText]}>Languages</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setTab('genres')} style={[styles.tab, tab === 'genres' && styles.activeTab]}>
-          <Text style={[styles.tabText, tab === 'genres' && styles.activeTabText]}>Genres</Text>
-        </TouchableOpacity>
-      </View>
-    
-      <FlatList
-  data={tab === 'countries' ? filterCountries() : tab === 'languages' ? filterLanguages() : filterGenres()}
-  keyExtractor={(item, index) => 
-    tab === 'countries' ? `${item.code}_${index}` : `${item.name}_${index}`
-  }
-  renderItem={({ item }) => renderItem(item)}
-/>
-
-    </View>
+    <Box flex={1} bg="gray.100">
+      <LinearGradient
+        colors={['#145DA0', '#E91E63']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ flex: 1, paddingHorizontal: 16, paddingVertical: 24 }}
+      >
+        <VStack space={5}>
+          <Input
+            placeholder={`Search ${tab === 'countries' ? 'country' : tab === 'languages' ? 'language' : tab === 'genres' ? 'genre' : 'station'}...`}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor="gray.500"
+            bg="white"
+            borderRadius="full"
+            px="4"
+            py="3"
+            borderWidth={1}
+            borderColor="gray.300"
+            shadow="2"
+          />
+          
+          <HStack space={1} justifyContent="center">
+          <Button   onPress={() => setTab('recommended')} variant={tab === 'recommended' ? 'solid' : 'outline'} bg={tab === 'recommended' ? "#E91E63" : "white"} borderRadius="full" _text={{ color: tab === 'recommended' ? 'white' : "#E91E63" }}>
+              Recommended
+            </Button>
+            <Button onPress={() => setTab('countries')} variant={tab === 'countries' ? 'solid' : 'outline'} bg={tab === 'countries' ? "#E91E63" : "white"} borderRadius="full" _text={{ color: tab === 'countries' ? 'white' : "#E91E63" }}>
+              Countries
+            </Button>
+         
+            <Button  onPress={() => setTab('languages')} variant={tab === 'languages' ? 'solid' : 'outline'} bg={tab === 'languages' ? "#E91E63" : "white"} borderRadius="full" _text={{ color: tab === 'languages' ? 'white' : "#E91E63" }}>
+              Languages
+            </Button>
+            <Button  onPress={() => setTab('genres')} variant={tab === 'genres' ? 'solid' : 'outline'} bg={tab === 'genres' ? "#E91E63" : "white"} borderRadius="full" _text={{ color: tab === 'genres' ? 'white' : "#E91E63" }}>
+              Genres
+            </Button>
+          </HStack>
+  
+          {loading ? (
+            <Box flex={1} justifyContent="center" alignItems="center">
+              <ActivityIndicator size="large" color="#E91E63" />
+            </Box>
+          ) : (
+            <FlatList
+              data={
+                tab === 'countries' ? filterCountries() :
+                tab === 'recommended' ? filterRecommended() :
+                tab === 'languages' ? filterLanguages() :
+                filterGenres()
+              }
+              keyExtractor={(item, index) => 
+                tab === 'countries' ? `${item.code}_${index}` :
+                tab === 'recommended' ? `${item.name}_${index}` :
+                `${item.name}_${index}`
+              }
+              renderItem={({ item }) => renderItem(item)}
+            />
+          )}
+        </VStack>
+      </LinearGradient>
+    </Box>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 20,
-    paddingHorizontal: 20,
-    backgroundColor: '#f9f9f9',
-  },
-  header: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#E91E63',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  searchBar: {
-    width: '100%',
-    padding: 12,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 20,
-    marginBottom: 20,
-    backgroundColor: '#fff',
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  searchview:{
-paddingTop:30,
-  },
-  tab: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    backgroundColor: '#ccc',
-    marginHorizontal: 5,
-  },
-  activeTab: {
-    backgroundColor: '#E91E63',
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  activeTabText: {
-    color: '#fff',
-  },
-  itemContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 15,
-    marginVertical: 5,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  item: {
-    fontSize: 18,
-    color: '#333',
-  },
-});
 
 export default HomeScreen;
