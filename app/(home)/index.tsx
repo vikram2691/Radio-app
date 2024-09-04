@@ -20,12 +20,20 @@ interface Genre {
   stationcount: number;
 }
 
+interface Station {
+  name: string;
+  votes: number;
+  country: string;
+  language: string;
+}
+
 const HomeScreen = () => {
   const [countries, setCountries] = useState<Country[]>([]);
   const [languages, setLanguages] = useState<Language[]>([]);
   const [genres, setGenres] = useState<Genre[]>([]);
+  const [recommended, setRecommended] = useState<Station[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [tab, setTab] = useState<'countries' | 'languages' | 'genres'>('countries');
+  const [tab, setTab] = useState<'countries' | 'languages' | 'genres' | 'recommended'>('countries');
   const [loading, setLoading] = useState<boolean>(true);
   const router = useRouter();
 
@@ -33,6 +41,7 @@ const HomeScreen = () => {
     fetchCountries();
     fetchLanguages();
     fetchGenres();
+    fetchRecommended();
   }, []);
 
   useEffect(() => {
@@ -88,6 +97,22 @@ const HomeScreen = () => {
     }
   };
 
+  const fetchRecommended = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('https://de1.api.radio-browser.info/json/stations/topvote/100');
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      const jsonData: Station[] = await response.json();
+      setRecommended(jsonData);
+    } catch (error) {
+      console.error("Error fetching recommended stations:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filterCountries = () => {
     if (searchQuery) {
       return countries.filter(country => country.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -109,7 +134,14 @@ const HomeScreen = () => {
     return genres.filter(genre => genre.name); // Remove items with empty names
   };
 
-  const renderItem = (item: Country | Language | Genre) => {
+  const filterRecommended = () => {
+    if (searchQuery) {
+      return recommended.filter(station => station.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
+    return recommended;
+  };
+
+  const renderItem = (item: Country | Language | Genre | Station) => {
     if ('iso_3166_1' in item) {
       return (
         <Pressable 
@@ -126,10 +158,31 @@ const HomeScreen = () => {
       return (
         <Pressable 
           onPress={() => {
-            router.push({ pathname: '/stations', params: { [`${'iso_639' in item ? 'language' : 'genre'}`]: item.name } });
+            router.push({ pathname: '/stations', params: { [`${'stationcount' in item ? 'language' : 'genre'}`]: item.name } });
           }}>
           <HStack justifyContent="space-between" alignItems="center" p="4" bg="white" borderRadius="lg" mb="2" shadow="2">
             <Text fontSize="lg" fontWeight="bold" color="#E91E63">{item.name}</Text>
+            <Icon as={Ionicons} name="chevron-forward-outline" size="6" color="#E91E63" />
+          </HStack>
+        </Pressable>
+      );
+    } else if ('votes' in item) {
+      return (
+        <Pressable 
+          onPress={() => {
+            router.push({
+              pathname: '/(player)',
+              params: {
+                selectedStation: JSON.stringify(item), // Pass the selected station as JSON
+                stations: JSON.stringify(recommended), // Pass all recommended stations as JSON
+              },
+            });
+          }}>
+          <HStack justifyContent="space-between" alignItems="center" p="4" bg="white" borderRadius="lg" mb="2" shadow="2">
+            <VStack>
+              <Text fontSize="lg" fontWeight="bold" color="#E91E63">{item.name}</Text>
+              <Text fontSize="md" color="gray.500">{item.country} - {item.language}</Text>
+            </VStack>
             <Icon as={Ionicons} name="chevron-forward-outline" size="6" color="#E91E63" />
           </HStack>
         </Pressable>
@@ -148,7 +201,7 @@ const HomeScreen = () => {
       >
         <VStack space={5}>
           <Input
-            placeholder={`Search ${tab === 'countries' ? 'country' : tab === 'languages' ? 'language' : 'genre'}...`}
+            placeholder={`Search ${tab === 'countries' ? 'country' : tab === 'languages' ? 'language' : tab === 'genres' ? 'genre' : 'station'}...`}
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor="gray.500"
@@ -160,28 +213,39 @@ const HomeScreen = () => {
             borderColor="gray.300"
             shadow="2"
           />
-
-          <HStack space={3} justifyContent="center">
+          
+          <HStack space={1} justifyContent="center">
+          <Button   onPress={() => setTab('recommended')} variant={tab === 'recommended' ? 'solid' : 'outline'} bg={tab === 'recommended' ? "#E91E63" : "white"} borderRadius="full" _text={{ color: tab === 'recommended' ? 'white' : "#E91E63" }}>
+              Recommended
+            </Button>
             <Button onPress={() => setTab('countries')} variant={tab === 'countries' ? 'solid' : 'outline'} bg={tab === 'countries' ? "#E91E63" : "white"} borderRadius="full" _text={{ color: tab === 'countries' ? 'white' : "#E91E63" }}>
               Countries
             </Button>
-            <Button onPress={() => setTab('languages')} variant={tab === 'languages' ? 'solid' : 'outline'} bg={tab === 'languages' ? "#E91E63" : "white"} borderRadius="full" _text={{ color: tab === 'languages' ? 'white' : "#E91E63" }}>
+         
+            <Button  onPress={() => setTab('languages')} variant={tab === 'languages' ? 'solid' : 'outline'} bg={tab === 'languages' ? "#E91E63" : "white"} borderRadius="full" _text={{ color: tab === 'languages' ? 'white' : "#E91E63" }}>
               Languages
             </Button>
-            <Button onPress={() => setTab('genres')} variant={tab === 'genres' ? 'solid' : 'outline'} bg={tab === 'genres' ? "#E91E63" : "white"} borderRadius="full" _text={{ color: tab === 'genres' ? 'white' : "#E91E63" }}>
+            <Button  onPress={() => setTab('genres')} variant={tab === 'genres' ? 'solid' : 'outline'} bg={tab === 'genres' ? "#E91E63" : "white"} borderRadius="full" _text={{ color: tab === 'genres' ? 'white' : "#E91E63" }}>
               Genres
             </Button>
           </HStack>
-
+  
           {loading ? (
             <Box flex={1} justifyContent="center" alignItems="center">
               <ActivityIndicator size="large" color="#E91E63" />
             </Box>
           ) : (
             <FlatList
-              data={tab === 'countries' ? filterCountries() : tab === 'languages' ? filterLanguages() : filterGenres()}
+              data={
+                tab === 'countries' ? filterCountries() :
+                tab === 'recommended' ? filterRecommended() :
+                tab === 'languages' ? filterLanguages() :
+                filterGenres()
+              }
               keyExtractor={(item, index) => 
-                tab === 'countries' ? `${item.code}_${index}` : `${item.name}_${index}`
+                tab === 'countries' ? `${item.code}_${index}` :
+                tab === 'recommended' ? `${item.name}_${index}` :
+                `${item.name}_${index}`
               }
               renderItem={({ item }) => renderItem(item)}
             />

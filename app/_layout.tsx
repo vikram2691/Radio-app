@@ -4,6 +4,7 @@ import { Tabs } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { TabBarIcon } from '@/components/navigation/TabBarIcon';
 import { NativeBaseProvider, extendTheme } from 'native-base';
+import { RadioPlayerProvider } from '@/components/RadioPlayerContext';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -27,45 +28,59 @@ export default function RootLayout() {
   }
 
   return (
-    <NativeBaseProvider theme={theme}>
-      <View style={styles.container}>
-        <Tabs
-          screenOptions={{
-            headerShown: false,
-            tabBarStyle: {
-              backgroundColor: theme.colors.background,
-            },
-            tabBarActiveTintColor: theme.colors.primary,
-            tabBarInactiveTintColor: colorScheme === 'dark' ? '#888888' : '#cccccc',
-          }}
-        >
-          <Tabs.Screen
-            name="(home)"
-            options={{
-              title: 'Home',
-              tabBarIcon: ({ color, focused }) => (
-                <TabBarIcon
-                  name={focused ? 'home' : 'home-outline'}
-                  color={color}
-                />
-              ),
+    <RadioPlayerProvider>
+      <NativeBaseProvider theme={theme}>
+        <View style={styles.container}>
+          <Tabs
+            screenOptions={{
+              headerShown: false,
+              tabBarStyle: {
+                backgroundColor: theme.colors.background,
+              },
+              tabBarActiveTintColor: theme.colors.primary,
+              tabBarInactiveTintColor: colorScheme === 'dark' ? '#888888' : '#cccccc',
             }}
-          />
-          <Tabs.Screen
-            name="(favourites)"
-            options={{
-              title: 'Favorites',
-              tabBarIcon: ({ color, focused }) => (
-                <TabBarIcon
-                  name={focused ? 'heart' : 'heart-outline'}
-                  color={color}
-                />
-              ),
-            }}
-          />
-        </Tabs>
-      </View>
-    </NativeBaseProvider>
+          >
+            <Tabs.Screen
+              name="(home)"
+              options={{
+                title: 'Home',
+                tabBarIcon: ({ color, focused }) => (
+                  <TabBarIcon
+                    name={focused ? 'home' : 'home-outline'}
+                    color={color}
+                  />
+                ),
+              }}
+            />
+            <Tabs.Screen
+              name="(favourites)"
+              options={{
+                title: 'Favorites',
+                tabBarIcon: ({ color, focused }) => (
+                  <TabBarIcon
+                    name={focused ? 'heart' : 'heart-outline'}
+                    color={color}
+                  />
+                ),
+              }}
+            />
+            <Tabs.Screen
+              name="(player)"
+              options={{
+                title: 'Player',
+                tabBarIcon: ({ color, focused }) => (
+                  <TabBarIcon
+                    name={focused ? 'radio' : 'radio-outline'}  // Use radio icon here
+                    color={color}
+                  />
+                ),
+              }}
+            />
+          </Tabs>
+        </View>
+      </NativeBaseProvider>
+    </RadioPlayerProvider>
   );
 }
 
