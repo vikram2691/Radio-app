@@ -28,15 +28,17 @@ const PlayerScreen: React.FC = () => {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [stations, setStations] = useState<Station[]>([]);
   const { isPlaying, togglePlayPause, switchStation } = useRadioPlayer();
-
   useEffect(() => {
-    const selectedStationParsed = JSON.parse(selectedStationString) as Station;
-    const stationsParsed = JSON.parse(passedStationsString) as Station[];
-    setSelectedStation(selectedStationParsed);
-    setStations(stationsParsed);
-
-    addStationToRecent(selectedStationParsed);
+    try {
+      const selectedStationParsed = JSON.parse(selectedStationString) as Station;
+      const stationsParsed = JSON.parse(passedStationsString) as Station[];
+      setSelectedStation(selectedStationParsed);
+      setStations(stationsParsed);
+    } catch (error) {
+      console.error('Error parsing JSON:', error);
+    }
   }, [selectedStationString, passedStationsString]);
+  
 
   const addStationToRecent = async (station: Station) => {
     try {
@@ -75,7 +77,7 @@ const PlayerScreen: React.FC = () => {
       <Box flex={1} p="4" justifyContent="center" alignItems="center">
         <Box mb="4" alignItems="center">
           <Image
-            source={{ uri: selectedStation.favicon || 'https://via.placeholder.com/150' }}
+          source={selectedStation.favicon ? { uri: selectedStation.favicon } : require('@/assets/images/rolex_radio.png')}
             alt={selectedStation.name}
             size="150px"
             borderRadius="full"

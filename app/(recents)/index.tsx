@@ -21,6 +21,7 @@ const RecentlyPlayedScreen: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const navigation = useNavigation();
   const { playRadio } = useRadioPlayer();
+
   useEffect(() => {
     loadRecentStations();
   }, []);
@@ -50,12 +51,11 @@ const RecentlyPlayedScreen: React.FC = () => {
     });
   };
 
-
   const renderStationItem = ({ item }: { item: Station }) => (
     <Pressable onPress={() => handleStationSelect(item)} p="2" mb="2" bg="white" borderRadius="lg" shadow="2">
       <HStack alignItems="center">
         <Image
-          source={{ uri: item.favicon || 'https://via.placeholder.com/150' }}
+          source={{ uri: item.favicon || '@/assets/images/rolex_radio.png' }}
           alt={item.name}
           size="50px"
           borderRadius="full"
@@ -90,8 +90,9 @@ const RecentlyPlayedScreen: React.FC = () => {
             renderItem={renderStationItem}
           />
         ) : (
+          
           <Box flex={1} justifyContent="center" alignItems="center">
-            <Text fontSize="lg" color="white">No recently played stations</Text>
+            <Text fontSize="lg" color="white">No recently played stations available. Start listening to your favorite channels!</Text>
           </Box>
         )}
       </Box>
@@ -100,5 +101,3 @@ const RecentlyPlayedScreen: React.FC = () => {
 };
 
 export default RecentlyPlayedScreen;
-
-

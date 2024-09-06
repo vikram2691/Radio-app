@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, useColorScheme } from 'react-native';
-import { Tabs } from 'expo-router';
+import { SplashScreen, Tabs } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { TabBarIcon } from '@/components/navigation/TabBarIcon';
 import { NativeBaseProvider, extendTheme } from 'native-base';
@@ -23,11 +23,7 @@ export default function RootLayout() {
     },
   });
 
-  if (!fontsLoaded) {
-    return null;
-  }
-
-  return (
+   return (
     <RadioPlayerProvider>
       <NativeBaseProvider theme={theme}>
         <View style={styles.container}>
@@ -72,6 +68,18 @@ export default function RootLayout() {
                 tabBarIcon: ({ color, focused }) => (
                   <TabBarIcon
                     name={focused ? 'radio' : 'radio-outline'}  // Use radio icon here
+                    color={color}
+                  />
+                ),
+              }}
+            />
+             <Tabs.Screen
+              name="(recents)"
+              options={{
+                title: 'Recents',
+                tabBarIcon: ({ color, focused }) => (
+                  <TabBarIcon
+                    name={focused ? 'time' : 'time-outline'}  // Suitable icon for recents
                     color={color}
                   />
                 ),
