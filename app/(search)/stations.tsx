@@ -96,6 +96,7 @@ const StationsScreen = () => {
       const response = await fetch(`https://de1.api.radio-browser.info/json/stations/bylanguage/${language}`);
       const data: Station[] = await response.json();
       setStations(data);
+      console.log("stations",data)
     } catch (error) {
       console.error('Error fetching stations by language:', error);
     } finally {
@@ -109,6 +110,7 @@ const StationsScreen = () => {
       const response = await fetch(`https://de1.api.radio-browser.info/json/stations/bytag/${genre}`);
       const data: Station[] = await response.json();
       setStations(data);
+     
     } catch (error) {
       console.error('Error fetching stations by genre:', error);
     } finally {
