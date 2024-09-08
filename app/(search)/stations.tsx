@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { VStack, Text, Icon, Pressable, HStack, Box, Image, FlatList, Input } from 'native-base';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,6 +24,47 @@ const StationsScreen = () => {
   const { country, language, genre } = useLocalSearchParams<{ country?: string; language?: string; genre?: string }>();
   const router = useRouter();
   const { playRadio } = useRadioPlayer();
+
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch stations based on search query
+  const fetchStationsBySearchQuery = async (query: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`https://de1.api.radio-browser.info/json/stations/search?name=${query}`);
+      const data: Station[] = await response.json();
+      setStations(data);
+    } catch (error) {
+      console.error('Error fetching stations by search query:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Debounced search logic
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      if (searchQuery) {
+        fetchStationsBySearchQuery(searchQuery);  // Fetch fresh data based on query
+      } else {
+        if (country) {
+          fetchStationsByCountry(country);
+        } else if (language) {
+          fetchStationsByLanguage(language);
+        } else if (genre) {
+          fetchStationsByGenre(genre);
+        }
+      }
+    }, 300); // 300ms debounce time
+
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, [searchQuery]);
 
   useEffect(() => {
     if (country) {
@@ -56,6 +96,7 @@ const StationsScreen = () => {
       const response = await fetch(`https://de1.api.radio-browser.info/json/stations/bylanguage/${language}`);
       const data: Station[] = await response.json();
       setStations(data);
+      console.log("stations",data)
     } catch (error) {
       console.error('Error fetching stations by language:', error);
     } finally {
@@ -69,6 +110,7 @@ const StationsScreen = () => {
       const response = await fetch(`https://de1.api.radio-browser.info/json/stations/bytag/${genre}`);
       const data: Station[] = await response.json();
       setStations(data);
+     
     } catch (error) {
       console.error('Error fetching stations by genre:', error);
     } finally {
@@ -99,16 +141,16 @@ const StationsScreen = () => {
 
   const toggleFavorite = (station: Station) => {
     const isFavorite = favorites.some(fav => fav.stationuuid === station.stationuuid);
-    const updatedFavorites = isFavorite
-      ? favorites.filter(fav => fav.stationuuid !== station.stationuuid)
-      : [...favorites, station];
+    let updatedFavorites;
+
+    if (isFavorite) {
+      updatedFavorites = favorites.filter(fav => fav.stationuuid !== station.stationuuid);
+    } else {
+      updatedFavorites = [...favorites, station];
+    }
 
     saveFavorites(updatedFavorites);
   };
-
-  const filteredStations = stations.filter(station =>
-    station.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   const handleStationSelect = (station: Station) => {
     playRadio(station);
@@ -137,7 +179,9 @@ const StationsScreen = () => {
             <Text fontSize="lg" fontWeight="bold" color="#E91E63">{item.name}</Text>
             <Text fontSize="md" color="gray.500">{item.country} - {item.language}</Text>
           </VStack>
-          <Icon as={Ionicons} name={isFavorite ? 'heart' : 'heart-outline'} size="6" color="#E91E63" ml="auto" />
+          <Pressable onPress={() => toggleFavorite(item)}>
+            <Icon as={Ionicons} name={isFavorite ? 'heart' : 'heart-outline'} size="6" color="#E91E63" ml="auto" />
+          </Pressable>
         </HStack>
       </Pressable>
     );
@@ -172,11 +216,20 @@ const StationsScreen = () => {
           <Box flex={1} justifyContent="center" alignItems="center">
             <Text color="white">Loading...</Text>
           </Box>
-        ) : filteredStations.length > 0 ? (
+        ) : stations.length > 0 ? (
           <FlatList
-            data={filteredStations}
+            data={stations}
             keyExtractor={(item) => item.stationuuid}
             renderItem={renderStationItem}
+            initialNumToRender={10} // Render 10 items initially
+            maxToRenderPerBatch={10} // Batch render 10 items at a time
+            windowSize={21} // Increase the window size for smoother scrolling
+            removeClippedSubviews={true} // Unmount items outside of the viewport
+            getItemLayout={(data, index) => ({
+              length: 80, // Height of each item
+              offset: 80 * index,
+              index,
+            })}
           />
         ) : (
           <Box flex={1} justifyContent="center" alignItems="center">

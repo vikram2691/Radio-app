@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, useColorScheme } from 'react-native';
-import { Tabs } from 'expo-router';
+import { SplashScreen, Tabs } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { TabBarIcon } from '@/components/navigation/TabBarIcon';
 import { NativeBaseProvider, extendTheme } from 'native-base';
 import { RadioPlayerProvider } from '@/components/RadioPlayerContext';
+import { Ionicons } from '@expo/vector-icons'; // Import Ionicons
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -23,11 +24,7 @@ export default function RootLayout() {
     },
   });
 
-  if (!fontsLoaded) {
-    return null;
-  }
-
-  return (
+   return (
     <RadioPlayerProvider>
       <NativeBaseProvider theme={theme}>
         <View style={styles.container}>
@@ -42,12 +39,36 @@ export default function RootLayout() {
             }}
           >
             <Tabs.Screen
-              name="(home)"
+              name="(Nearby_stations)"
               options={{
                 title: 'Home',
                 tabBarIcon: ({ color, focused }) => (
                   <TabBarIcon
                     name={focused ? 'home' : 'home-outline'}
+                    color={color}
+                  />
+                ),
+              }}
+            />
+            <Tabs.Screen
+              name="(search)"
+              options={{
+                title: 'Search',
+                tabBarIcon: ({ color, focused }) => (
+                  <TabBarIcon
+                    name={focused ? 'globe' : 'globe-outline'} // Use globe icon here
+                    color={color}
+                  />
+                ),
+              }}
+            />
+            <Tabs.Screen
+              name="(player)"
+              options={{
+                title: 'Player',
+                tabBarIcon: ({ color, focused }) => (
+                  <TabBarIcon
+                    name={focused ? 'radio' : 'radio-outline'}  // Use radio icon here
                     color={color}
                   />
                 ),
@@ -66,12 +87,12 @@ export default function RootLayout() {
               }}
             />
             <Tabs.Screen
-              name="(player)"
+              name="(recents)"
               options={{
-                title: 'Player',
+                title: 'Recents',
                 tabBarIcon: ({ color, focused }) => (
                   <TabBarIcon
-                    name={focused ? 'radio' : 'radio-outline'}  // Use radio icon here
+                    name={focused ? 'time' : 'time-outline'}  // Suitable icon for recents
                     color={color}
                   />
                 ),
