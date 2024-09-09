@@ -1,5 +1,7 @@
+
 import React, { createContext, useState, useContext } from 'react';
 import { Audio } from 'expo-av';
+import { useToast } from 'native-base';  // Import useToast from NativeBase
 
 interface Station {
   favicon: string;
@@ -35,6 +37,7 @@ export const RadioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [stations, setStations] = useState<Station[]>([]);
+  const toast = useToast();  // Initialize toast
 
   const playRadio = async (station: Station) => {
     if (selectedStation?.stationuuid === station.stationuuid) {
@@ -65,7 +68,15 @@ export const RadioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setIsPlaying(true);
       } catch (error) {
         console.error("Error creating sound:", error);
-        alert("Unable to play this station. Please try another one.");
+        // Show a toast error message using NativeBase
+        toast.show({
+          title: "Error",
+          variant: "error",
+          description: "Unable to play this station. Please try another one.",
+          placement: "top", // Show at the top
+          bg: "#E91E63",   // Pink color to match the theme
+          duration: 3000,  // Auto-hide after 3 seconds
+        });
       }
     }
   };

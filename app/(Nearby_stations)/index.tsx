@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { FlatList, ActivityIndicator, Alert } from 'react-native';
 import { Box, Text, VStack, HStack, Icon, Pressable, Input, Image } from 'native-base';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,15 +25,31 @@ const NearbyStationsScreen = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [favorites, setFavorites] = useState<Station[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [storedLanguage, setStoredLanguage] = useState<string | null>(null);
+  const [selectedStation, setSelectedStation] = useState<Station | null>(null); // New state
+  const [isNavigating, setIsNavigating] = useState<boolean>(false); // New state
   const router = useRouter();
-  const { playRadio, selectedStation } = useRadioPlayer();
+  const { playRadio } = useRadioPlayer();
 
-  useEffect(() => {
-    getUserLocation();
+  useEffect(() => {   
     loadFavorites();
+    loadStoredLanguage();
   }, []);
 
-  // Function to get the user's location
+  const loadStoredLanguage = async () => {
+    try {
+      const language = await AsyncStorage.getItem('preferredLanguage');
+      if (language) {
+        setStoredLanguage(language);
+        fetchStationsByLanguage(language);
+      } else {
+        getUserLocation();
+      }
+    } catch (error) {
+      console.error('Error loading stored language:', error);
+    }
+  };
+
   const getUserLocation = async () => {
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
@@ -61,7 +77,6 @@ const NearbyStationsScreen = () => {
     }
   };
 
-  // Fetch stations by country, state, and language
   const fetchStationsByLocation = async (country: string | null, state: string | null, isoCountryCode: string | null) => {
     setLoading(true);
     try {
@@ -71,25 +86,24 @@ const NearbyStationsScreen = () => {
         return;
       }
 
-      // Fetch stations by country
       const response = await fetch(`https://de1.api.radio-browser.info/json/stations/bycountry/${country}`);
       const data: Station[] = await response.json();
 
-      // Filter stations by state
       const stateFilteredStations = data.filter((station) => station.state === state);
       const stationsToSet = stateFilteredStations.length > 0 ? stateFilteredStations : data;
 
-      // Get the language from the first station (assuming all stations in this location have the same language)
       const stationLanguage = stationsToSet[0]?.language || null;
+      if (stationLanguage) {
+        await AsyncStorage.setItem('preferredLanguage', stationLanguage);
+        setStoredLanguage(stationLanguage);
+      }
 
-      // Fetch additional stations by language
       let languageStations: Station[] = [];
       if (stationLanguage) {
         const languageResponse = await fetch(`https://de1.api.radio-browser.info/json/stations/bylanguage/${stationLanguage}`);
         languageStations = await languageResponse.json();
       }
-
-      // Combine the stations and sort by votes
+      
       const combinedStations = [...stationsToSet, ...languageStations];
       const uniqueStations = Array.from(new Map(combinedStations.map(station => [station.stationuuid, station])).values());
 
@@ -103,7 +117,21 @@ const NearbyStationsScreen = () => {
     }
   };
 
-  // Load favorite stations from AsyncStorage
+  const fetchStationsByLanguage = async (language: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`https://de1.api.radio-browser.info/json/stations/bylanguage/${language}`);
+      const data: Station[] = await response.json();
+      data.sort((a, b) => b.votes - a.votes); 
+      setStations(data);
+    } catch (error) {
+      console.error('Error fetching stations by language:', error);
+      Alert.alert('Error', 'Could not fetch radio stations by language.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const loadFavorites = async () => {
     try {
       const jsonValue = await AsyncStorage.getItem('favoriteStations');
@@ -115,7 +143,6 @@ const NearbyStationsScreen = () => {
     }
   };
 
-  // Save favorites to AsyncStorage
   const saveFavorites = async (updatedFavorites: Station[]) => {
     try {
       await AsyncStorage.setItem('favoriteStations', JSON.stringify(updatedFavorites));
@@ -125,7 +152,6 @@ const NearbyStationsScreen = () => {
     }
   };
 
-  // Toggle station as a favorite
   const toggleFavorite = (station: Station) => {
     const isFavorite = favorites.some((fav) => fav.stationuuid === station.stationuuid);
     let updatedFavorites;
@@ -139,28 +165,50 @@ const NearbyStationsScreen = () => {
     saveFavorites(updatedFavorites);
   };
 
-  // Check if the station is a favorite
   const isFavorite = (stationuuid: string) => {
     return favorites.some((fav) => fav.stationuuid === stationuuid);
   };
 
-  const handleSearch = (text: string) => {
-    setSearchQuery(text);
-    const filteredStations = stations.filter((station) => station.name.toLowerCase().includes(text.toLowerCase()));
-    setStations(filteredStations);
+  const fetchStationsBySearchQuery = async (query: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`https://de1.api.radio-browser.info/json/stations/search?name=${query}`);
+      const data: Station[] = await response.json();
+      setStations(data);
+    } catch (error) {
+      console.error('Error fetching stations by search query:', error);
+      Alert.alert('Error', 'Could not fetch radio stations by search query.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Handle station selection and navigation to the player screen
+  const handleSearch = (text: string) => {
+    setSearchQuery(text);
+    if (text.trim() === '') {      
+      fetchStationsByLanguage(storedLanguage); // Use stored language if search is cleared
+    } else {
+      fetchStationsBySearchQuery(text);
+    }
+  };
+
   const handleNavigateToPlayer = async (station: Station) => {
+    setSelectedStation(station);
+    setIsNavigating(true);
+
     try {
-      await playRadio(station);  // Play the selected radio station
+      await playRadio(station); 
+  
+      const selectedIndex = stations.findIndex((s) => s.stationuuid === station.stationuuid);
+      const start = Math.max(0, selectedIndex - 20); 
+      const end = Math.min(stations.length, selectedIndex + 20 + 1);  
 
-      // Safely stringify the selected station and stations
+      const nearbyStations = stations.slice(start, end);
+  
       const selectedStation = JSON.stringify(station);
-      const stationList = JSON.stringify(stations);
-
-      // Navigate to the player screen with serialized params
-      router.push({
+      const stationList = JSON.stringify(nearbyStations);
+  
+      await router.push({
         pathname: '/(player)',
         params: {
           selectedStation,
@@ -170,11 +218,22 @@ const NearbyStationsScreen = () => {
     } catch (error) {
       console.error("Error navigating to player:", error);
       Alert.alert('Error', 'Failed to navigate to player screen.');
+    } finally {
+      setIsNavigating(false);
+      setSelectedStation(null);
     }
   };
 
-  const renderStationItem = ({ item }: { item: Station }) => (
-    <HStack alignItems="center" justifyContent="space-between" p="2" mb="2" bg="white" borderRadius="lg" shadow="2">
+  const renderStationItem = useCallback(({ item }: { item: Station }) => (
+    <HStack
+      alignItems="center"
+      justifyContent="space-between"
+      p="2"
+      mb="2"
+      bg={selectedStation?.stationuuid === item.stationuuid ? '#E91E63' : 'white'}
+      borderRadius="lg"
+      shadow="2"
+    >
       <Pressable onPress={() => handleNavigateToPlayer(item)} flex={1} flexDirection="row" alignItems="center">
         <Image
           source={{ uri: item.favicon || '@/assets/images/rolex_radio.png' }}
@@ -184,8 +243,12 @@ const NearbyStationsScreen = () => {
           mr="4"
         />
         <VStack>
-          <Text fontSize="lg" fontWeight="bold" color="#E91E63">{item.name}</Text>
-          <Text fontSize="md" color="gray.500">{item.state ? `${item.state}, ${item.country}` : item.country} - {item.language}</Text>
+          <Text fontSize="lg" fontWeight="bold" color={selectedStation?.stationuuid === item.stationuuid ? 'white' : '#E91E63'}>
+            {item.name}
+          </Text>
+          <Text fontSize="md" color={selectedStation?.stationuuid === item.stationuuid ? 'white' : 'gray.500'}>
+            {item.state ? `${item.state}, ${item.country}` : item.country} - {item.language}
+          </Text>
         </VStack>
       </Pressable>
       <Pressable onPress={() => toggleFavorite(item)}>
@@ -193,12 +256,12 @@ const NearbyStationsScreen = () => {
           as={Ionicons}
           name={isFavorite(item.stationuuid) ? 'heart' : 'heart-outline'}
           size="6"
-          color="#E91E63"
+          color={selectedStation?.stationuuid === item.stationuuid ? 'white' : '#E91E63'}
           ml="auto"
         />
       </Pressable>
     </HStack>
-  );
+  ), [favorites, stations, selectedStation]);
 
   return (
     <LinearGradient
@@ -225,9 +288,12 @@ const NearbyStationsScreen = () => {
             mb="4"
           />
 
-          {loading ? (
+          {loading || isNavigating ? (
             <Box flex={1} justifyContent="center" alignItems="center">
               <ActivityIndicator size="large" color="#E91E63" />
+              <Text color="white" fontSize="lg" mb="4">
+              {isNavigating ? "Connecting to the station. Please wait and enjoy the music..." : "Loading..."}
+            </Text>
             </Box>
           ) : stations.length > 0 ? (
             <FlatList
