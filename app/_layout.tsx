@@ -5,12 +5,12 @@ import { useFonts } from 'expo-font';
 import { TabBarIcon } from '@/components/navigation/TabBarIcon';
 import { NativeBaseProvider, extendTheme } from 'native-base';
 import { RadioPlayerProvider } from '@/components/RadioPlayerContext';
-import { Ionicons } from '@expo/vector-icons'; // Import Ionicons
+
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
-    'Satoshi-Regular': require('@/assets/fonts/Satoshi-Regular.otf'),
-    'Satoshi-Bold': require('@/assets/fonts/Satoshi-Bold.otf'),
+  const [fontsLoaded] = useFonts({   
+    "roboto-light": require('@/assets/fonts/RobotoCondensed-Medium.ttf'),
+    "roboto-bold": require('@/assets/fonts/RobotoCondensed-ExtraBold.ttf'),
   });
 
   // Determine the color scheme (light or dark mode)
