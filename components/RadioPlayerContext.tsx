@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext } from 'react';
 import { Audio } from 'expo-av';
 import { useToast } from 'native-base';  // Import useToast from NativeBase
@@ -15,6 +14,7 @@ interface Station {
 interface RadioPlayerContextType {
   sound: Audio.Sound | null;
   isPlaying: boolean;
+  isBuffering: boolean;  // New state for buffering
   selectedStation: Station | null;
   stations: Station[];
   playRadio: (station: Station) => Promise<void>;
@@ -35,9 +35,10 @@ export const useRadioPlayer = () => {
 export const RadioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [isBuffering, setIsBuffering] = useState<boolean>(false);  // State for buffering
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [stations, setStations] = useState<Station[]>([]);
-  const toast = useToast();  // Initialize toast
+  const toast = useToast();
 
   const playRadio = async (station: Station) => {
     if (selectedStation?.stationuuid === station.stationuuid) {
@@ -50,33 +51,40 @@ export const RadioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setIsPlaying(true);
       }
     } else {
-      // If a new station is selected, stop the current sound and play the new one
+      // Unload previous sound if new station is selected
       if (sound) {
-        await sound.unloadAsync();  // Unload the previous sound
+        await sound.unloadAsync();
         setSound(null);
         setIsPlaying(false);
       }
 
       setSelectedStation(station);
+      setIsBuffering(true);  // Show buffering state
 
       try {
         const { sound: newSound } = await Audio.Sound.createAsync(
           { uri: station.url },
           { shouldPlay: true }
         );
+        newSound.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded && !status.isBuffering) {
+            setIsBuffering(false);  // Buffering complete
+          }
+        });
+
         setSound(newSound);
         setIsPlaying(true);
       } catch (error) {
         console.error("Error creating sound:", error);
-        // Show a toast error message using NativeBase
         toast.show({
           title: "Error",
           variant: "error",
           description: "Unable to play this station. Please try another one.",
-          placement: "top", // Show at the top
-          bg: "#E91E63",   // Pink color to match the theme
-          duration: 3000,  // Auto-hide after 3 seconds
+          placement: "top",
+          bg: "#E91E63",
+          duration: 3000,
         });
+        setIsBuffering(false);  // Stop buffering if error
       }
     }
   };
@@ -93,20 +101,28 @@ export const RadioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  const switchStation = (direction: 'next' | 'prev', stations: Station[]) => {
-    if (!selectedStation) return;
+  const switchStation = async (direction: 'next' | 'prev', stations: Station[]) => {
+    const currentIndex = stations.findIndex(station => station.stationuuid === selectedStation?.stationuuid);
+    const newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
 
-    const currentIndex = stations.findIndex(station => station.stationuuid === selectedStation.stationuuid);
-    const newIndex = direction === 'next'
-      ? (currentIndex + 1) % stations.length
-      : (currentIndex - 1 + stations.length) % stations.length;
+    if (newIndex < 0 || newIndex >= stations.length) {
+      toast.show({
+        title: "No more stations",
+        variant: "warning",
+        description: "You've reached the end of the station list.",
+        placement: "top",
+        bg: "orange.500",
+        duration: 3000,
+      });
+      return;
+    }
 
     const newStation = stations[newIndex];
-    playRadio(newStation);  // Switch to the new station
+    await playRadio(newStation);  // Switch to the new station
   };
 
   return (
-    <RadioPlayerContext.Provider value={{ sound, isPlaying, selectedStation, stations, playRadio, togglePlayPause, switchStation }}>
+    <RadioPlayerContext.Provider value={{ sound, isPlaying, isBuffering, selectedStation, stations, playRadio, togglePlayPause, switchStation }}>
       {children}
     </RadioPlayerContext.Provider>
   );

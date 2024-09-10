@@ -236,17 +236,17 @@ const NearbyStationsScreen = () => {
     >
       <Pressable onPress={() => handleNavigateToPlayer(item)} flex={1} flexDirection="row" alignItems="center">
         <Image
-          source={{ uri: item.favicon || '@/assets/images/rolex_radio.png' }}
+          source={item.favicon ? { uri: item.favicon } : require('@/assets/images/rolex_radio.png')}
           alt={item.name}
           size="50px"
           borderRadius="full"
           mr="4"
         />
         <VStack>
-          <Text fontSize="lg" fontWeight="bold" color={selectedStation?.stationuuid === item.stationuuid ? 'white' : '#E91E63'}>
+          <Text fontSize="lg" fontFamily={"roboto-light"}fontWeight="bold" color={selectedStation?.stationuuid === item.stationuuid ? 'white' : '#E91E63'}>
             {item.name}
           </Text>
-          <Text fontSize="md" color={selectedStation?.stationuuid === item.stationuuid ? 'white' : 'gray.500'}>
+          <Text fontSize="md" fontFamily={"roboto-light"} color={selectedStation?.stationuuid === item.stationuuid ? 'white' : 'gray.500'}>
             {item.state ? `${item.state}, ${item.country}` : item.country} - {item.language}
           </Text>
         </VStack>
@@ -271,7 +271,7 @@ const NearbyStationsScreen = () => {
       style={{ flex: 1 }}
     >
       <Box flex={1} p="4">
-        <Text fontSize="2xl" fontWeight="bold" color="white" mb="4">Nearby Stations</Text>
+        <Text fontSize="2xl" fontWeight="bold" fontFamily="roboto-bold"color="white" mb="4">Nearby Stations</Text>
         <VStack space={5}>
           <Input
             placeholder="Search stations..."
@@ -291,7 +291,7 @@ const NearbyStationsScreen = () => {
           {loading || isNavigating ? (
             <Box flex={1} justifyContent="center" alignItems="center">
               <ActivityIndicator size="large" color="#E91E63" />
-              <Text color="white" fontSize="lg" mb="4">
+              <Text color="white" fontFamily={"roboto-light"} fontSize="lg" mb="4">
               {isNavigating ? "Connecting to the station. Please wait and enjoy the music..." : "Loading..."}
             </Text>
             </Box>

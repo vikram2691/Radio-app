@@ -55,15 +55,15 @@ const RecentlyPlayedScreen: React.FC = () => {
     <Pressable onPress={() => handleStationSelect(item)} p="2" mb="2" bg="white" borderRadius="lg" shadow="2">
       <HStack alignItems="center">
         <Image
-          source={{ uri: item.favicon || '@/assets/images/rolex_radio.png' }}
+          source={item.favicon ? { uri: item.favicon } : require('@/assets/images/rolex_radio.png')}
           alt={item.name}
           size="50px"
           borderRadius="full"
           mr="4"
         />
         <VStack>
-          <Text fontSize="lg" fontWeight="bold" color="#E91E63">{item.name}</Text>
-          <Text fontSize="md" color="gray.500">{item.country} - {item.language}</Text>
+          <Text fontSize="lg" fontFamily={"roboto-light"} fontWeight="bold" color="#E91E63">{item.name}</Text>
+          <Text fontSize="md" fontFamily={"roboto-light"} color="gray.500">{item.country} - {item.language}</Text>
         </VStack>
         <Icon as={Ionicons} name="chevron-forward-outline" size="6" color="#E91E63" ml="auto" />
       </HStack>
@@ -78,7 +78,7 @@ const RecentlyPlayedScreen: React.FC = () => {
       style={{ flex: 1 }}
     >
       <Box flex={1} p="4">
-        <Text fontSize="2xl" fontWeight="bold" color="white" mb="4">Recently Played</Text>
+        <Text fontSize="2xl" fontWeight="bold" fontFamily={"roboto-light"} color="white" mb="4">Recently Played</Text>
         {loading ? (
           <Box flex={1} justifyContent="center" alignItems="center">
             <Text color="white">Loading...</Text>
@@ -92,7 +92,7 @@ const RecentlyPlayedScreen: React.FC = () => {
         ) : (
           
           <Box flex={1} justifyContent="center" alignItems="center">
-            <Text fontSize="lg" color="white">No recently played stations available. Start listening to your favorite channels!</Text>
+            <Text fontSize="lg" fontFamily={"roboto-light"} color="white">No recently played stations available. Start listening to your favorite channels!</Text>
           </Box>
         )}
       </Box>

@@ -189,15 +189,15 @@ const StationsScreen = () => {
       <Pressable onPress={() => handleStationSelect(item)} p="2" mb="2" bg="white" borderRadius="lg" shadow="2">
         <HStack alignItems="center">
           <Image
-            source={{ uri: item.favicon || 'https://via.placeholder.com/150' }}
+             source={item.favicon ? { uri: item.favicon } : require('@/assets/images/rolex_radio.png')}
             alt={item.name}
             size="50px"
             borderRadius="full"
             mr="4"
           />
           <VStack>
-            <Text fontSize="lg" fontWeight="bold" color="#E91E63">{item.name}</Text>
-            <Text fontSize="md" color="gray.500">{item.country} - {item.language}</Text>
+            <Text fontSize="lg" fontFamily={"roboto-light"}fontWeight="bold" color="#E91E63">{item.name}</Text>
+            <Text fontSize="md" fontFamily={"roboto-light"}color="gray.500">{item.country} - {item.language}</Text>
           </VStack>
           <Pressable onPress={() => toggleFavorite(item)}>
             <Icon as={Ionicons} name={isFavorite ? 'heart' : 'heart-outline'} size="6" color="#E91E63" ml="auto" />
@@ -215,7 +215,7 @@ const StationsScreen = () => {
       style={{ flex: 1 }}
     >
       <Box flex={1} p="4">
-        <Text fontSize="2xl" fontWeight="bold" color="white" mb="4">Stations</Text>
+        <Text fontSize="2xl" fontFamily={"roboto-bold"}fontWeight="bold" color="white" mb="4">Stations</Text>
         
         <Input
           placeholder="Search stations..."
@@ -234,7 +234,7 @@ const StationsScreen = () => {
         
         {loading || isNavigating ? (
           <Box flex={1} justifyContent="center" alignItems="center">
-            <Text color="white" fontSize="lg" mb="4">
+            <Text color="white" fontFamily={"roboto-light"} fontSize="lg" mb="4">
               {isNavigating ? "Connecting to the station. Please wait and enjoy the music..." : "Loading..."}
             </Text>
             <ActivityIndicator size="large" color="#E91E63" />
@@ -256,7 +256,7 @@ const StationsScreen = () => {
           />
         ) : (
           <Box flex={1} justifyContent="center" alignItems="center">
-            <Text fontSize="lg" color="white">No stations found</Text>
+            <Text fontSize="lg" fontFamily={"roboto-light"} color="white">No stations found</Text>
           </Box>
         )}
       </Box>

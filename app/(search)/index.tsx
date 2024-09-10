@@ -141,7 +141,7 @@ const HomeScreen = () => {
         return (
           <Pressable onPress={() => router.push({ pathname: '/stations', params: { country: item.name } })}>
             <HStack justifyContent="space-between" alignItems="center" p="4" bg="white" borderRadius="lg" mb="2" shadow="2">
-              <Text fontSize="lg" fontWeight="bold" color="#E91E63">{item.name}</Text>
+              <Text fontSize="lg" fontFamily={"roboto-light"}fontWeight="bold" color="#E91E63">{item.name}</Text>
               <Icon as={Ionicons} name="chevron-forward-outline" size="6" color="#E91E63" />
             </HStack>
           </Pressable>
@@ -150,7 +150,7 @@ const HomeScreen = () => {
         return (
           <Pressable onPress={() => router.push({ pathname: '/stations', params: { [`${tab === 'languages' ? 'language' : 'genre'}`]: item.name } })}>
             <HStack justifyContent="space-between" alignItems="center" p="4" bg="white" borderRadius="lg" mb="2" shadow="2">
-              <Text fontSize="lg" fontWeight="bold" color="#E91E63">{item.name}</Text>
+              <Text fontSize="lg" fontFamily={"roboto-light"}fontWeight="bold" color="#E91E63">{item.name}</Text>
               <Icon as={Ionicons} name="chevron-forward-outline" size="6" color="#E91E63" />
             </HStack>
           </Pressable>
@@ -160,8 +160,8 @@ const HomeScreen = () => {
           <Pressable onPress={() => router.push({ pathname: '/(player)', params: { selectedStation: JSON.stringify(item), stations: JSON.stringify(recommended) } })}>
             <HStack justifyContent="space-between" alignItems="center" p="4" bg="white" borderRadius="lg" mb="2" shadow="2">
               <VStack>
-                <Text fontSize="lg" fontWeight="bold" color="#E91E63">{item.name}</Text>
-                <Text fontSize="md" color="gray.500">{item.country} - {item.language}</Text>
+                <Text fontSize="lg" fontFamily={"roboto-light"}fontWeight="bold" color="#E91E63">{item.name}</Text>
+                <Text fontSize="md" fontFamily={"roboto-light"}color="gray.500">{item.country} - {item.language}</Text>
               </VStack>
               <Icon as={Ionicons} name="chevron-forward-outline" size="6" color="#E91E63" />
             </HStack>

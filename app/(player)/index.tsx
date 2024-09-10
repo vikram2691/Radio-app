@@ -5,7 +5,7 @@ import { useRadioPlayer } from '@/components/RadioPlayerContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native'; // For pop-up alerts
+import { ActivityIndicator, Alert } from 'react-native'; // For pop-up alerts
 
 type Station = {
   favicon: string;
@@ -30,7 +30,7 @@ const PlayerScreen: React.FC = () => {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [stations, setStations] = useState<Station[]>([]);
   const [favorites, setFavorites] = useState<Station[]>([]);
-  const { isPlaying, togglePlayPause, switchStation } = useRadioPlayer();
+  const { isPlaying, togglePlayPause, switchStation,isBuffering } = useRadioPlayer();
 
   useEffect(() => {
     if (selectedStationString && passedStationsString) {
@@ -124,6 +124,7 @@ const PlayerScreen: React.FC = () => {
             fontWeight="bold"
             color="white"
             textAlign="center"
+            fontFamily={"roboto-light"}
           >
             Select a station and enjoy the music!
           </Text>
@@ -154,36 +155,38 @@ const PlayerScreen: React.FC = () => {
         </Box>
 
         <VStack alignItems="center" mb="6">
-          <Text textTransform="uppercase" fontSize="2xl" fontWeight="bold" fontFamily="Satoshi-Bold" color="white">
+          <Text textTransform="uppercase" fontSize="2xl" fontWeight="bold" fontFamily={"roboto-bold"} color="white">
             {selectedStation.name}
           </Text>
-          <Text textTransform="uppercase" fontSize="md" fontFamily="Satoshi-Bold" color="white">
+          <Text textTransform="uppercase" fontSize="md" fontFamily={"roboto-light"} color="white">
             {selectedStation.country}
           </Text>
-          <Text textTransform="uppercase" fontSize="md" fontFamily="Satoshi-Bold" color="white">
+          <Text textTransform="uppercase" fontSize="md" fontFamily={"roboto-light"} color="white">
             {selectedStation.language}
           </Text>
         </VStack>
 
         {/* Heart Icon for adding/removing from favorites */}
-        <Pressable onPress={() => toggleFavorite(selectedStation)} mb="6">
+        <Pressable onPress={() => toggleFavorite(selectedStation)} mb="8">
           <Icon as={Ionicons} name={isFavorite ? 'heart' : 'heart-outline'} size="8" color="white" />
         </Pressable>
 
-        <HStack justifyContent="space-between" alignItems="center" width="60%" mb="4">
+        <HStack justifyContent="space-between" alignItems="center" width="70%" mb="6">
           {/* Previous Station */}
           <Pressable onPress={() => handleSwitchStation('prev')} p="2">
-            <Icon as={Ionicons} name="play-skip-back" size="8" color="white" />
+            <Icon as={Ionicons} name="play-skip-back" size="12" color="white" />
           </Pressable>
-
-          {/* Play / Pause */}
-          <Pressable onPress={() => togglePlayPause()} p="2">
-            <Icon as={Ionicons} name={isPlaying ? 'pause-circle' : 'play-circle'} size="8" color="white" />
-          </Pressable>
+          {isBuffering ? (
+  <ActivityIndicator size="large" color="white" />
+) : (
+  <Pressable onPress={() => togglePlayPause()} p="2">
+    <Icon as={Ionicons} name={isPlaying ? 'pause-circle' : 'play-circle'} size="12" color="white" />
+  </Pressable>
+)}
 
           {/* Next Station */}
           <Pressable onPress={() => handleSwitchStation('next')} p="2">
-            <Icon as={Ionicons} name="play-skip-forward" size="8" color="white" />
+            <Icon as={Ionicons} name="play-skip-forward" size="12" color="white" />
           </Pressable>
         </HStack>
       </Box>
