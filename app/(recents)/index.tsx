@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { VStack, Text, Icon, Pressable, HStack, Box, Image, FlatList } from 'native-base';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useRadioPlayer } from '@/components/RadioPlayerContext';
+import { AdEventType, InterstitialAd, TestIds } from 'react-native-google-mobile-ads';
 
 type Station = {
   favicon: string;
@@ -20,8 +21,38 @@ const RecentlyPlayedScreen: React.FC = () => {
   const [recentStations, setRecentStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const navigation = useNavigation();
+  const [isAdLoaded, setIsAdLoaded] = useState<boolean>(false);
+  const [navigationCount, setNavigationCount] = useState<number>(0);
   const { playRadio } = useRadioPlayer();
+  const interstitialAd = useRef(InterstitialAd.createForAdRequest(TestIds.INTERSTITIAL)).current; 
 
+  useEffect(() => {
+    const loadAd = () => {
+      interstitialAd.load(); // Load the ad
+    };
+
+    const adListener = interstitialAd.addAdEventListener(AdEventType.LOADED, () => {
+      setIsAdLoaded(true); // Set ad loaded state
+    });
+
+    const closeListener = interstitialAd.addAdEventListener(AdEventType.CLOSED, () => {
+      setIsAdLoaded(false); // Reset ad loaded state
+      interstitialAd.load(); // Preload the next ad
+    });
+
+    const errorListener = interstitialAd.addAdEventListener(AdEventType.ERROR, (error) => {
+      console.error('Error loading interstitial ad', error);
+    });
+
+    loadAd(); // Load ad initially
+
+    // Show the ad on page load if available
+    return () => {
+      adListener(); // Clean up the listener on unmount
+      closeListener(); // Clean up the close listener
+      errorListener(); // Clean up the error listener
+    };
+  }, [interstitialAd]);
   useEffect(() => {
     loadRecentStations();
   }, []);
@@ -42,6 +73,16 @@ const RecentlyPlayedScreen: React.FC = () => {
 
   const handleStationSelect = (station: Station) => {
     playRadio(station);
+    setNavigationCount((prevCount) => prevCount + 1); // Increment navigation count
+
+    // Show the ad if the user has navigated to the player screen an even number of times
+    if (navigationCount % 2 === 1) { // Show ad every second navigation
+      if (interstitialAd.loaded) {
+        interstitialAd.show();
+      } else {
+        console.log("Ad wasn't loaded");
+      }
+    }
     router.push({ 
       pathname: '/(player)',
       params: { 

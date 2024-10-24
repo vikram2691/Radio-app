@@ -5,6 +5,7 @@ import { useFonts } from 'expo-font';
 import { TabBarIcon } from '@/components/navigation/TabBarIcon';
 import { NativeBaseProvider, extendTheme } from 'native-base';
 import { RadioPlayerProvider } from '@/components/RadioPlayerContext';
+import { BannerAd, TestIds, BannerAdSize } from 'react-native-google-mobile-ads';
 
 
 export default function RootLayout() {
@@ -99,6 +100,23 @@ export default function RootLayout() {
               }}
             />
           </Tabs>
+          <BannerAd
+            unitId="ca-app-pub-3940256099942544/6300978111"
+            size={BannerAdSize.INLINE_ADAPTIVE_BANNER}
+           
+            onAdLoaded={() => {
+              console.log('Banner ad loaded');
+            }}
+            onAdFailedToLoad={(error) => {
+              console.error('Banner ad failed to load:', error);
+            }}
+            onAdOpened={() => {
+              console.log('Banner ad opened');
+            }}
+            onAdClosed={() => {
+              console.log('Banner ad closed');
+            }}
+          />
         </View>
       </NativeBaseProvider>
     </RadioPlayerProvider>
@@ -108,5 +126,10 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  bannerAd: {
+    alignSelf: 'center',  
+    position: 'absolute',
+    bottom: 0, 
   },
 });

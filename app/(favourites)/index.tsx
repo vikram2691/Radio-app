@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FlatList } from 'react-native';
 import { Box, Text, VStack, HStack, Pressable, Image, Icon } from 'native-base';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRadioPlayer } from '@/components/RadioPlayerContext';
 import { router } from 'expo-router';
-
+import { InterstitialAd, AdEventType, TestIds } from 'react-native-google-mobile-ads';
 interface Station {
   stationuuid: string;
   name: string;
@@ -20,7 +20,9 @@ const FavoritesScreen = () => {
   const [favoriteStations, setFavoriteStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const { playRadio, selectedStation } = useRadioPlayer();
-
+  const [navigationCount, setNavigationCount] = useState<number>(0);
+  const [isAdLoaded, setIsAdLoaded] = useState<boolean>(false);
+  const interstitialAd = useRef(InterstitialAd.createForAdRequest(TestIds.INTERSTITIAL)).current; 
   useEffect(() => {
     loadFavorites();
   }, []);
@@ -38,9 +40,45 @@ const FavoritesScreen = () => {
       setLoading(false);
     }
   };
-
+  useEffect(() => {
+    const loadAd = () => {
+      interstitialAd.load(); 
+    };
+  
+    const adListener = interstitialAd.addAdEventListener(AdEventType.LOADED, () => {
+      setIsAdLoaded(true); // Set ad loaded state
+    });
+  
+    const closeListener = interstitialAd.addAdEventListener(AdEventType.CLOSED, () => {
+      setIsAdLoaded(false); // Reset ad loaded state
+      interstitialAd.load(); // Preload the next ad
+    });
+  
+    const errorListener = interstitialAd.addAdEventListener(AdEventType.ERROR, (error) => {
+      console.error('Error loading interstitial ad', error);
+    });
+  
+    loadAd(); // Load ad initially
+  
+    // Show the ad on page load if available
+    return () => {
+      adListener(); // Clean up the listener on unmount
+      closeListener(); // Clean up the close listener
+      errorListener(); // Clean up the error listener
+    };
+  }, [interstitialAd]);
   const handleStationSelect = (station: Station) => {
     playRadio(station);
+    setNavigationCount((prevCount) => prevCount + 1); // Increment navigation count
+
+    // Show the ad if the user has navigated to the player screen an even number of times
+    if (navigationCount % 2 === 1) { // Show ad every second navigation
+      if (interstitialAd.loaded) {
+        interstitialAd.show();
+      } else {
+        console.log("Ad wasn't loaded");
+      }
+    }
     router.push({ 
       pathname: '/(player)',
       params: { 
