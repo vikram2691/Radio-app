@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { FlatList, ActivityIndicator, Alert } from 'react-native';
 import { Box, Text, VStack, HStack, Icon, Pressable, Input, Image } from 'native-base';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,7 +8,7 @@ import * as Location from 'expo-location';
 import { reverseGeocodeAsync } from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRadioPlayer } from '@/components/RadioPlayerContext';
-
+import { InterstitialAd, AdEventType, TestIds } from 'react-native-google-mobile-ads';
 interface Station {
   name: string;
   votes: number;
@@ -30,12 +30,40 @@ const NearbyStationsScreen = () => {
   const [isNavigating, setIsNavigating] = useState<boolean>(false); // New state
   const router = useRouter();
   const { playRadio } = useRadioPlayer();
-
+  const [navigationCount, setNavigationCount] = useState<number>(0);
+  const [isAdLoaded, setIsAdLoaded] = useState<boolean>(false);
+  const interstitialAd = useRef(InterstitialAd.createForAdRequest(TestIds.INTERSTITIAL)).current; 
   useEffect(() => {   
     loadFavorites();
     loadStoredLanguage();
   }, []);
+  useEffect(() => {
+    const loadAd = () => {
+      interstitialAd.load(); // Load the ad
+    };
 
+    const adListener = interstitialAd.addAdEventListener(AdEventType.LOADED, () => {
+      setIsAdLoaded(true); // Set ad loaded state
+    });
+
+    const closeListener = interstitialAd.addAdEventListener(AdEventType.CLOSED, () => {
+      setIsAdLoaded(false); // Reset ad loaded state
+      interstitialAd.load(); // Preload the next ad
+    });
+
+    const errorListener = interstitialAd.addAdEventListener(AdEventType.ERROR, (error) => {
+      console.error('Error loading interstitial ad', error);
+    });
+
+    loadAd(); // Load ad initially
+
+    // Show the ad on page load if available
+    return () => {
+      adListener(); // Clean up the listener on unmount
+      closeListener(); // Clean up the close listener
+      errorListener(); // Clean up the error listener
+    };
+  }, [interstitialAd]);
   const loadStoredLanguage = async () => {
     try {
       const language = await AsyncStorage.getItem('preferredLanguage');
@@ -195,7 +223,17 @@ const NearbyStationsScreen = () => {
   const handleNavigateToPlayer = async (station: Station) => {
     setSelectedStation(station);
     setIsNavigating(true);
+    setIsNavigating(true);
+    setNavigationCount((prevCount) => prevCount + 1); // Increment navigation count
 
+    // Show the ad if the user has navigated to the player screen an even number of times
+    if (navigationCount % 2 === 1) { // Show ad every second navigation
+      if (interstitialAd.loaded) {
+        interstitialAd.show();
+      } else {
+        console.log("Ad wasn't loaded");
+      }
+    }
     try {
       await playRadio(station); 
   

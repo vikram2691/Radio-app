@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { VStack, Text, Icon, Pressable, HStack, Box, Image } from 'native-base';
+import React, { useState, useEffect, useRef } from 'react';
+import { VStack, Text, Icon, Pressable, HStack, Box, Image, Alert } from 'native-base';
 import { Ionicons } from '@expo/vector-icons';
 import { useRadioPlayer } from '@/components/RadioPlayerContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, Alert } from 'react-native'; // For pop-up alerts
+import { InterstitialAd, AdEventType, TestIds } from 'react-native-google-mobile-ads';
+import { ActivityIndicator } from 'react-native';
 
 type Station = {
   favicon: string;
@@ -30,7 +31,40 @@ const PlayerScreen: React.FC = () => {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [stations, setStations] = useState<Station[]>([]);
   const [favorites, setFavorites] = useState<Station[]>([]);
-  const { isPlaying, togglePlayPause, switchStation,isBuffering } = useRadioPlayer();
+  const { isPlaying, togglePlayPause, switchStation, isBuffering } = useRadioPlayer();
+  
+  const interstitialAd = useRef(InterstitialAd.createForAdRequest(TestIds.INTERSTITIAL)).current; // Use ref for ad instance
+  const [isAdLoaded, setIsAdLoaded] = useState<boolean>(false); // Track if the ad is loaded
+  const stationSwitchCountRef = useRef<number>(0); // Counter for station switches
+
+  // Load interstitial ad on page load
+  useEffect(() => {
+    const loadAd = () => {
+      interstitialAd.load(); // Load the ad
+    };
+
+    const adListener = interstitialAd.addAdEventListener(AdEventType.LOADED, () => {
+      setIsAdLoaded(true); // Set ad loaded state
+    });
+
+    const closeListener = interstitialAd.addAdEventListener(AdEventType.CLOSED, () => {
+      setIsAdLoaded(false); // Reset ad loaded state
+      interstitialAd.load(); // Preload the next ad
+    });
+
+    const errorListener = interstitialAd.addAdEventListener(AdEventType.ERROR, (error) => {
+      console.error('Error loading interstitial ad', error);
+    });
+
+    loadAd(); // Load ad initially
+
+    // Show the ad on page load if available
+    return () => {
+      adListener(); // Clean up the listener on unmount
+      closeListener(); // Clean up the close listener
+      errorListener(); // Clean up the error listener
+    };
+  }, [interstitialAd]);
 
   useEffect(() => {
     if (selectedStationString && passedStationsString) {
@@ -105,9 +139,34 @@ const PlayerScreen: React.FC = () => {
     }
 
     const newStation = stations[newIndex];
-    switchStation(direction, stations);
-    setSelectedStation(newStation);
-    addStationToRecent(newStation);
+
+    // Show the interstitial ad if it's loaded (for every 3rd switch)
+    stationSwitchCountRef.current += 1;
+    const shouldShowAd = stationSwitchCountRef.current % 3 === 0;
+
+    if (shouldShowAd && isAdLoaded) {
+      interstitialAd.show().catch((error) => {
+        console.error("Ad failed to show:", error);
+        switchStation(direction, stations);
+        setSelectedStation(newStation);
+        addStationToRecent(newStation);
+      }); // Try showing the ad
+      // Listen for ad close event to switch the station
+      const closeListener = interstitialAd.addAdEventListener(AdEventType.CLOSED, () => {
+        switchStation(direction, stations);
+        setSelectedStation(newStation);
+        addStationToRecent(newStation);
+      });
+
+      return () => {
+        closeListener(); // Clean up the listener when done
+      };
+    } else {
+      // If ad isn't loaded or it's not the 3rd switch, proceed to switch the station
+      switchStation(direction, stations);
+      setSelectedStation(newStation);
+      addStationToRecent(newStation);
+    }
   };
 
   if (!selectedStation || !stations.length) {
@@ -133,6 +192,7 @@ const PlayerScreen: React.FC = () => {
       </LinearGradient>
     );
   }
+
 
   const isFavorite = favorites.some(fav => fav.stationuuid === selectedStation.stationuuid);
 
@@ -177,12 +237,12 @@ const PlayerScreen: React.FC = () => {
             <Icon as={Ionicons} name="play-skip-back" size="12" color="white" />
           </Pressable>
           {isBuffering ? (
-  <ActivityIndicator size="large" color="white" />
-) : (
-  <Pressable onPress={() => togglePlayPause()} p="2">
-    <Icon as={Ionicons} name={isPlaying ? 'pause-circle' : 'play-circle'} size="12" color="white" />
-  </Pressable>
-)}
+            <ActivityIndicator size="large" color="white" />
+          ) : (
+            <Pressable onPress={() => togglePlayPause()} p="2">
+              <Icon as={Ionicons} name={isPlaying ? 'pause-circle' : 'play-circle'} size="12" color="white" />
+            </Pressable>
+          )}
 
           {/* Next Station */}
           <Pressable onPress={() => handleSwitchStation('next')} p="2">
