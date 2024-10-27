@@ -219,48 +219,51 @@ const NearbyStationsScreen = () => {
       fetchStationsBySearchQuery(text);
     }
   };
-
   const handleNavigateToPlayer = async (station: Station) => {
+    setIsNavigating(true);
     setSelectedStation(station);
-    setIsNavigating(true);
-    setIsNavigating(true);
-    setNavigationCount((prevCount) => prevCount + 1); // Increment navigation count
+    
+    setNavigationCount((prevCount) => prevCount + 1);
 
     // Show the ad if the user has navigated to the player screen an even number of times
-    if (navigationCount % 2 === 1) { // Show ad every second navigation
-      if (interstitialAd.loaded) {
-        interstitialAd.show();
-      } else {
-        console.log("Ad wasn't loaded");
-      }
+    if (navigationCount % 2 === 1) {
+        if (interstitialAd.loaded) {
+            interstitialAd.show();
+        } else {
+            console.log("Ad wasn't loaded");
+        }
     }
     try {
-      await playRadio(station); 
-  
-      const selectedIndex = stations.findIndex((s) => s.stationuuid === station.stationuuid);
-      const start = Math.max(0, selectedIndex - 20); 
-      const end = Math.min(stations.length, selectedIndex + 20 + 1);  
+        // Start loading the radio
+        await playRadio(station);
 
-      const nearbyStations = stations.slice(start, end);
-  
-      const selectedStation = JSON.stringify(station);
-      const stationList = JSON.stringify(nearbyStations);
-  
-      await router.push({
-        pathname: '/(player)',
-        params: {
-          selectedStation,
-          stations: stationList,
-        },
-      });
+        const selectedIndex = stations.findIndex((s) => s.stationuuid === station.stationuuid);
+        const start = Math.max(0, selectedIndex - 20);
+        const end = Math.min(stations.length, selectedIndex + 20 + 1);
+        
+        const nearbyStations = stations.slice(start, end);
+        
+        const selectedStation = JSON.stringify(station);
+        const stationList = JSON.stringify(nearbyStations);
+        
+        await router.push({
+            pathname: '/(player)',
+            params: {
+                selectedStation,
+                stations: stationList,
+            },
+        });
     } catch (error) {
-      console.error("Error navigating to player:", error);
-      Alert.alert('Error', 'Failed to navigate to player screen.');
+        console.error("Error navigating to player:", error);
+        Alert.alert('Error', 'Failed to navigate to player screen.');
     } finally {
-      setIsNavigating(false);
-      setSelectedStation(null);
+       
+        setSelectedStation(null);
+         // Reset states after navigation
+         setIsNavigating(false);
     }
-  };
+};
+
 
   const renderStationItem = useCallback(({ item }: { item: Station }) => (
     <HStack
@@ -326,13 +329,13 @@ const NearbyStationsScreen = () => {
             mb="4"
           />
 
-          {loading || isNavigating ? (
-            <Box flex={1} justifyContent="center" alignItems="center">
-              <ActivityIndicator size="large" color="#E91E63" />
-              <Text color="white" fontFamily={"roboto-light"} fontSize="lg" mb="4">
+{loading || isNavigating ? (
+          <Box flex={1} justifyContent="center" alignItems="center">
+            <Text color="white" fontFamily={"roboto-light"} fontSize="lg" mb="4">
               {isNavigating ? "Connecting to the station. Please wait and enjoy the music..." : "Loading..."}
             </Text>
-            </Box>
+            <ActivityIndicator size="large" color="#E91E63" />
+          </Box>
           ) : stations.length > 0 ? (
             <FlatList
               data={stations}

@@ -1,6 +1,6 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useRef, useState, useContext } from 'react';
 import { Audio } from 'expo-av';
-import { useToast } from 'native-base';  // Import useToast from NativeBase
+import { useToast } from 'native-base';
 
 interface Station {
   favicon: string;
@@ -14,7 +14,7 @@ interface Station {
 interface RadioPlayerContextType {
   sound: Audio.Sound | null;
   isPlaying: boolean;
-  isBuffering: boolean;  // New state for buffering
+  isBuffering: boolean;
   selectedStation: Station | null;
   stations: Station[];
   playRadio: (station: Station) => Promise<void>;
@@ -33,79 +33,113 @@ export const useRadioPlayer = () => {
 };
 
 export const RadioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [isBuffering, setIsBuffering] = useState<boolean>(false);  // State for buffering
+  const soundRef = useRef<Audio.Sound | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);  // Prevents duplicate play requests
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [stations, setStations] = useState<Station[]>([]);
   const toast = useToast();
-
   const playRadio = async (station: Station) => {
-    if (selectedStation?.stationuuid === station.stationuuid) {
-      // If the same station is selected, toggle play/pause
-      if (isPlaying) {
-        await sound?.pauseAsync();
+    if (isSwitching || selectedStation?.stationuuid === station.stationuuid) {
+      console.log("Duplicate play request blocked for station:", station.name);
+      return;
+    }
+  
+    setIsSwitching(true);
+    console.log(`playRadio called for station: ${station.name}`);
+  
+    try {
+      // Set the audio mode to allow background playback
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        staysActiveInBackground: true, // Enable background audio playback
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+    } catch (error) {
+      console.error("Error setting audio mode:", error);
+      toast.show({
+        title: "Error",
+        variant: "error",
+        description: "Audio settings failed. Please try again.",
+        placement: "top",
+        bg: "#E91E63",
+        duration: 3000,
+      });
+      setIsSwitching(false);
+      return; // Exit function if setting audio mode fails
+    }
+  
+    // Second try block for sound playback
+    try {
+      if (soundRef.current) {
+        console.log('Unloading current sound...');
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
         setIsPlaying(false);
-      } else {
-        await sound?.playAsync();
-        setIsPlaying(true);
       }
-    } else {
-      // Unload previous sound if new station is selected
-      if (sound) {
-        await sound.unloadAsync();
-        setSound(null);
-        setIsPlaying(false);
-      }
-
+  
       setSelectedStation(station);
-      setIsBuffering(true);  // Show buffering state
-
-      try {
-        const { sound: newSound } = await Audio.Sound.createAsync(
-          { uri: station.url },
-          { shouldPlay: true }
-        );
-        newSound.setOnPlaybackStatusUpdate((status) => {
-          if (status.isLoaded && !status.isBuffering) {
-            setIsBuffering(false);  // Buffering complete
-          }
-        });
-
-        setSound(newSound);
-        setIsPlaying(true);
-      } catch (error) {
-        console.error("Error creating sound:", error);
-        toast.show({
-          title: "Error",
-          variant: "error",
-          description: "Unable to play this station. Please try another one.",
-          placement: "top",
-          bg: "#E91E63",
-          duration: 3000,
-        });
-        setIsBuffering(false);  // Stop buffering if error
-      }
+      setIsBuffering(true);
+  
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: station.url },
+        { shouldPlay: true }
+      );
+  
+      soundRef.current = sound;
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && !status.isBuffering) {
+          setIsBuffering(false);
+        }
+      });
+  
+      setIsPlaying(true);
+      setIsBuffering(false);
+      console.log(`Playing new station: ${station.name}`);
+    } catch (error) {
+      console.error("Error creating sound:", error);
+      toast.show({
+        title: "Error",
+        variant: "error",
+        description: "Unable to play this station. Please try another one.",
+        placement: "top",
+        bg: "#E91E63",
+        duration: 3000,
+      });
+      setIsBuffering(false);
+    } finally {
+      setIsSwitching(false);
     }
   };
+  
 
   const togglePlayPause = async () => {
-    if (sound) {
+    if (soundRef.current) {
+      console.log(isPlaying ? 'Pausing sound' : 'Playing sound');
       if (isPlaying) {
-        await sound.pauseAsync();
+        await soundRef.current.pauseAsync();
         setIsPlaying(false);
       } else {
-        await sound.playAsync();
+        await soundRef.current.playAsync();
         setIsPlaying(true);
       }
     }
   };
 
   const switchStation = async (direction: 'next' | 'prev', stations: Station[]) => {
+    if (isSwitching) {
+      console.log("Station switch in progress, blocking duplicate switchStation call.");
+      return;
+    }
+
     const currentIndex = stations.findIndex(station => station.stationuuid === selectedStation?.stationuuid);
     const newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
 
     if (newIndex < 0 || newIndex >= stations.length) {
+      console.log("Reached the end of the station list");
       toast.show({
         title: "No more stations",
         variant: "warning",
@@ -118,11 +152,21 @@ export const RadioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
 
     const newStation = stations[newIndex];
-    await playRadio(newStation);  // Switch to the new station
+    console.log(`Switching to new station: ${newStation.name}`);
+    await playRadio(newStation);
   };
 
   return (
-    <RadioPlayerContext.Provider value={{ sound, isPlaying, isBuffering, selectedStation, stations, playRadio, togglePlayPause, switchStation }}>
+    <RadioPlayerContext.Provider value={{ 
+      sound: soundRef.current, 
+      isPlaying, 
+      isBuffering, 
+      selectedStation, 
+      stations, 
+      playRadio, 
+      togglePlayPause, 
+      switchStation 
+    }}>
       {children}
     </RadioPlayerContext.Provider>
   );
