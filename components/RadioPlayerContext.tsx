@@ -40,16 +40,39 @@ export const RadioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [stations, setStations] = useState<Station[]>([]);
   const toast = useToast();
-
   const playRadio = async (station: Station) => {
     if (isSwitching || selectedStation?.stationuuid === station.stationuuid) {
       console.log("Duplicate play request blocked for station:", station.name);
       return;
     }
-    
+  
     setIsSwitching(true);
     console.log(`playRadio called for station: ${station.name}`);
-
+  
+    try {
+      // Set the audio mode to allow background playback
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        staysActiveInBackground: true, // Enable background audio playback
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+    } catch (error) {
+      console.error("Error setting audio mode:", error);
+      toast.show({
+        title: "Error",
+        variant: "error",
+        description: "Audio settings failed. Please try again.",
+        placement: "top",
+        bg: "#E91E63",
+        duration: 3000,
+      });
+      setIsSwitching(false);
+      return; // Exit function if setting audio mode fails
+    }
+  
+    // Second try block for sound playback
     try {
       if (soundRef.current) {
         console.log('Unloading current sound...');
@@ -57,22 +80,22 @@ export const RadioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         soundRef.current = null;
         setIsPlaying(false);
       }
-
+  
       setSelectedStation(station);
       setIsBuffering(true);
-
+  
       const { sound } = await Audio.Sound.createAsync(
         { uri: station.url },
         { shouldPlay: true }
       );
-
+  
       soundRef.current = sound;
       sound.setOnPlaybackStatusUpdate((status) => {
         if (status.isLoaded && !status.isBuffering) {
           setIsBuffering(false);
         }
       });
-
+  
       setIsPlaying(true);
       setIsBuffering(false);
       console.log(`Playing new station: ${station.name}`);
@@ -91,6 +114,7 @@ export const RadioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setIsSwitching(false);
     }
   };
+  
 
   const togglePlayPause = async () => {
     if (soundRef.current) {
