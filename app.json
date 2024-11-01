@@ -6,12 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
-    "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/images/radio_pulse.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#ffffff"
-    },
+    "userInterfaceStyle": "automatic",  
     "ios": {
       "supportsTablet": true
     },

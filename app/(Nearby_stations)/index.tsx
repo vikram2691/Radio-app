@@ -26,8 +26,8 @@ const NearbyStationsScreen = () => {
   const [favorites, setFavorites] = useState<Station[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [storedLanguage, setStoredLanguage] = useState<string | null>(null);
-  const [selectedStation, setSelectedStation] = useState<Station | null>(null); // New state
-  const [isNavigating, setIsNavigating] = useState<boolean>(false); // New state
+  const [selectedStation, setSelectedStation] = useState<Station | null>(null); 
+  const [isNavigating, setIsNavigating] = useState<boolean>(false); 
   const router = useRouter();
   const { playRadio } = useRadioPlayer();
   const [navigationCount, setNavigationCount] = useState<number>(0);
