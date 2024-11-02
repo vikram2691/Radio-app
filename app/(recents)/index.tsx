@@ -18,80 +18,84 @@ type Station = {
 };
 
 const RecentlyPlayedScreen: React.FC = () => {
+  // State for recent stations, loading state, ad load status, and navigation count
   const [recentStations, setRecentStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const navigation = useNavigation();
   const [isAdLoaded, setIsAdLoaded] = useState<boolean>(false);
   const [navigationCount, setNavigationCount] = useState<number>(0);
-  const { playRadio } = useRadioPlayer();
-  const interstitialAd = useRef(InterstitialAd.createForAdRequest(TestIds.INTERSTITIAL)).current; 
 
+  // Player and navigation hooks
+  const { playRadio } = useRadioPlayer();
+  const navigation = useNavigation();
+  
+  // Interstitial ad setup
+  const interstitialAd = useRef(InterstitialAd.createForAdRequest(TestIds.INTERSTITIAL)).current;
+
+  // Load interstitial ad and set up event listeners
   useEffect(() => {
-    const loadAd = () => {
-      interstitialAd.load(); // Load the ad
-    };
+    const loadAd = () => interstitialAd.load();
 
     const adListener = interstitialAd.addAdEventListener(AdEventType.LOADED, () => {
-      setIsAdLoaded(true); // Set ad loaded state
+      setIsAdLoaded(true);
     });
-
+    
     const closeListener = interstitialAd.addAdEventListener(AdEventType.CLOSED, () => {
-      setIsAdLoaded(false); // Reset ad loaded state
-      interstitialAd.load(); // Preload the next ad
+      setIsAdLoaded(false);
+      interstitialAd.load(); // Reload ad for next use
     });
 
     const errorListener = interstitialAd.addAdEventListener(AdEventType.ERROR, (error) => {
       console.error('Error loading interstitial ad', error);
     });
 
-    loadAd(); // Load ad initially
+    loadAd();
 
-    // Show the ad on page load if available
+    // Cleanup event listeners on unmount
     return () => {
-      adListener(); // Clean up the listener on unmount
-      closeListener(); // Clean up the close listener
-      errorListener(); // Clean up the error listener
+      adListener();
+      closeListener();
+      errorListener();
     };
   }, [interstitialAd]);
+
+  // Load recently played stations from AsyncStorage
   useEffect(() => {
     loadRecentStations();
   }, []);
 
   const loadRecentStations = async () => {
     try {
-      setLoading(true);
+      setLoading(true); // Start loading animation
       const storedStations = await AsyncStorage.getItem('recentStations');
-      if (storedStations) {
-        setRecentStations(JSON.parse(storedStations));
-      }
+      if (storedStations) setRecentStations(JSON.parse(storedStations));
     } catch (error) {
       console.error('Error loading recent stations:', error);
     } finally {
-      setLoading(false);
+      setLoading(false); // Stop loading animation
     }
   };
 
+  // Handle station selection with conditional ad display
   const handleStationSelect = (station: Station) => {
     playRadio(station);
-    setNavigationCount((prevCount) => prevCount + 1); // Increment navigation count
+    setNavigationCount(prevCount => prevCount + 1); // Track navigation count
 
-    // Show the ad if the user has navigated to the player screen an even number of times
-    if (navigationCount % 2 === 1) { // Show ad every second navigation
-      if (interstitialAd.loaded) {
-        interstitialAd.show();
-      } else {
-        console.log("Ad wasn't loaded");
-      }
+    // Show the ad every second navigation to a station
+    if (navigationCount % 2 === 1 && isAdLoaded) {
+      interstitialAd.show().catch(() => console.log("Ad wasn't loaded"));
     }
-    router.push({ 
+
+    // Navigate to the player screen with the selected station and recent stations
+    router.push({
       pathname: '/(player)',
-      params: { 
-        selectedStation: JSON.stringify(station), // Pass the selected station as a JSON string
-        stations: JSON.stringify(recentStations) // Pass the list of favorite stations as a JSON string
-      } 
+      params: {
+        selectedStation: JSON.stringify(station), // Pass station data as JSON string
+        stations: JSON.stringify(recentStations) // Pass the list of recent stations
+      }
     });
   };
 
+  // Render a single station item in the FlatList
   const renderStationItem = ({ item }: { item: Station }) => (
     <Pressable onPress={() => handleStationSelect(item)} p="2" mb="2" bg="white" borderRadius="lg" shadow="2">
       <HStack alignItems="center">
@@ -103,8 +107,8 @@ const RecentlyPlayedScreen: React.FC = () => {
           mr="4"
         />
         <VStack>
-          <Text fontSize="lg" fontFamily={"roboto-light"} fontWeight="bold" color="#E91E63">{item.name}</Text>
-          <Text fontSize="md" fontFamily={"roboto-light"} color="gray.500">{item.country} - {item.language}</Text>
+          <Text fontSize="lg" fontFamily="roboto-light" fontWeight="bold" color="#E91E63">{item.name}</Text>
+          <Text fontSize="md" fontFamily="roboto-light" color="gray.500">{item.country} - {item.language}</Text>
         </VStack>
         <Icon as={Ionicons} name="chevron-forward-outline" size="6" color="#E91E63" ml="auto" />
       </HStack>
@@ -119,7 +123,9 @@ const RecentlyPlayedScreen: React.FC = () => {
       style={{ flex: 1 }}
     >
       <Box flex={1} p="4">
-        <Text fontSize="2xl" fontWeight="bold" fontFamily={"roboto-light"} color="white" mb="4">Recently Played</Text>
+        <Text fontSize="2xl" fontWeight="bold" fontFamily="roboto-light" color="white" mb="4">Recently Played</Text>
+        
+        {/* Show loading state or render list of recently played stations */}
         {loading ? (
           <Box flex={1} justifyContent="center" alignItems="center">
             <Text color="white">Loading...</Text>
@@ -131,9 +137,10 @@ const RecentlyPlayedScreen: React.FC = () => {
             renderItem={renderStationItem}
           />
         ) : (
-          
           <Box flex={1} justifyContent="center" alignItems="center">
-            <Text fontSize="lg" fontFamily={"roboto-light"} color="white">No recently played stations available. Start listening to your favorite channels!</Text>
+            <Text fontSize="lg" fontFamily="roboto-light" color="white">
+              No recently played stations available. Start listening to your favorite channels!
+            </Text>
           </Box>
         )}
       </Box>

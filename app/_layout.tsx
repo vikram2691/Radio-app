@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, useColorScheme } from 'react-native';
 import { SplashScreen, Tabs } from 'expo-router';
 import { useFonts } from 'expo-font';
@@ -6,7 +6,7 @@ import { TabBarIcon } from '@/components/navigation/TabBarIcon';
 import { NativeBaseProvider, extendTheme } from 'native-base';
 import { RadioPlayerProvider } from '@/components/RadioPlayerContext';
 import { BannerAd, TestIds, BannerAdSize } from 'react-native-google-mobile-ads';
-
+import LoadingScreen from '@/components/Loadingscreen';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({   
@@ -16,7 +16,7 @@ export default function RootLayout() {
 
   // Determine the color scheme (light or dark mode)
   const colorScheme = useColorScheme();
-
+  const [isLoading, setIsLoading] = useState(true);
   // Create a theme that respects the system theme
   const theme = extendTheme({
     colors: {
@@ -24,7 +24,17 @@ export default function RootLayout() {
       background: colorScheme === 'dark' ? '#000000' : '#ffffff',
     },
   });
+  useEffect(() => {
+    if (fontsLoaded) {
+      const timer = setTimeout(() => setIsLoading(false), 5000);  // Show loading for 5 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [fontsLoaded]);
 
+  // Display loading screen if loading is true
+  if (!fontsLoaded || isLoading) {
+    return <LoadingScreen />;
+  }
    return (
     <RadioPlayerProvider>
       <NativeBaseProvider theme={theme}>
@@ -102,7 +112,7 @@ export default function RootLayout() {
           </Tabs>
           <BannerAd
             unitId="ca-app-pub-3940256099942544/6300978111"
-            size={BannerAdSize.INLINE_ADAPTIVE_BANNER}
+            size={BannerAdSize.FULL_BANNER}
            
             onAdLoaded={() => {
               console.log('Banner ad loaded');

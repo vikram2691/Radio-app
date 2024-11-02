@@ -1,6 +1,7 @@
 import React, { createContext, useRef, useState, useContext } from 'react';
 import { Audio } from 'expo-av';
 import { useToast } from 'native-base';
+import { Alert } from 'react-native';
 
 interface Station {
   favicon: string;
@@ -109,6 +110,11 @@ export const RadioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         bg: "#E91E63",
         duration: 3000,
       });
+      Alert.alert(
+        "Station Unavailable",
+        "The selected station could not be played. Please try another station.",
+        [{ text: "OK", onPress: () => console.log("Alert closed") }]
+      );
       setIsBuffering(false);
     } finally {
       setIsSwitching(false);
