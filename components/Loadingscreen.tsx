@@ -1,4 +1,3 @@
-// LoadingScreen.js
 import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, Image } from 'react-native';
 
@@ -17,10 +16,11 @@ export default function LoadingScreen() {
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <Image 
-        source={require('@/assets/images/welcome_note.png')}  // Make sure to add your image here
-        style={styles.image}
+        source={require('@/assets/images/loading.gif')} 
+        style={styles.fullscreenGif}
+        resizeMode="cover"
       />
-      <Text style={styles.welcomeText}>Welcome to Your App!</Text>
+   
     </Animated.View>
   );
 }
@@ -30,16 +30,16 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#E91E63',  // Customize background color
+    backgroundColor: '#E91E63',  // Optional background color
   },
-  image: {
-    width: 150,
-    height: 150,
-    marginBottom: 20,
+  fullscreenGif: {
+    position: 'absolute', // Makes the GIF cover the entire background
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
   },
-  welcomeText: {
-    fontSize: 24,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
+  
 });
