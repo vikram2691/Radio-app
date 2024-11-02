@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { FlatList, ActivityIndicator, Alert } from 'react-native';
-import { Box, Text, VStack, HStack, Icon, Pressable, Input, Image } from 'native-base';
+import { Box, Text, VStack, HStack, Icon, Pressable, Input, Image, Modal, Button } from 'native-base';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -30,6 +30,7 @@ const NearbyStationsScreen = () => {
   const [isNavigating, setIsNavigating] = useState<boolean>(false); 
   const router = useRouter();
   const { playRadio } = useRadioPlayer();
+  const [isPermissionModalVisible, setIsPermissionModalVisible] = useState<boolean>(false);
   const [navigationCount, setNavigationCount] = useState<number>(0);
   const [isAdLoaded, setIsAdLoaded] = useState<boolean>(false);
   const interstitialAd = useRef(InterstitialAd.createForAdRequest(TestIds.INTERSTITIAL)).current; 
@@ -71,7 +72,7 @@ const NearbyStationsScreen = () => {
         setStoredLanguage(language);
         fetchStationsByLanguage(language);
       } else {
-        getUserLocation();
+        setIsPermissionModalVisible(true); // Show modal if no language is stored
       }
     } catch (error) {
       console.error('Error loading stored language:', error);
@@ -80,17 +81,16 @@ const NearbyStationsScreen = () => {
 
   const getUserLocation = async () => {
     try {
-      let { status } = await Location.requestForegroundPermissionsAsync();
+      const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission denied', 'Location permission is needed to fetch nearby radio stations');
         return;
       }
-
-      let location = await Location.getCurrentPositionAsync({});
+      setIsPermissionModalVisible(false); // Hide modal after permission is granted
+      const location = await Location.getCurrentPositionAsync({});
       const { latitude, longitude } = location.coords;
 
-      let reverseGeocodedLocation = await reverseGeocodeAsync({ latitude, longitude });
-
+      const reverseGeocodedLocation = await reverseGeocodeAsync({ latitude, longitude });
       if (reverseGeocodedLocation.length > 0) {
         const locationDetails = reverseGeocodedLocation[0];
         fetchStationsByLocation(locationDetails.country, locationDetails.region, locationDetails.isoCountryCode);
@@ -104,7 +104,6 @@ const NearbyStationsScreen = () => {
       setLoading(false);
     }
   };
-
   const fetchStationsByLocation = async (country: string | null, state: string | null, isoCountryCode: string | null) => {
     setLoading(true);
     try {
@@ -313,6 +312,41 @@ const NearbyStationsScreen = () => {
     >
       <Box flex={1} p="4">
         <Text fontSize="2xl" fontWeight="bold" fontFamily="roboto-bold"color="white" mb="4">Nearby Stations</Text>
+        <Modal isOpen={isPermissionModalVisible} onClose={() => setIsPermissionModalVisible(false)}>
+  <Modal.Content maxWidth="400px" bg="blueGray.800" borderRadius="lg" p="4" shadow="5">
+    <Modal.CloseButton _icon={{ color: 'white' }} />
+    <Modal.Header _text={{ color: 'white', fontSize: 'lg', fontWeight: 'bold' }} borderBottomWidth={0}>
+      Location Permission
+    </Modal.Header>
+    <Modal.Body>
+      <Text color="gray.200" fontSize="md" mb="4" textAlign="center">
+        We need access to your location to recommend nearby radio stations. Please allow location access.
+      </Text>
+    </Modal.Body>
+    <Modal.Footer borderTopWidth={0}>
+      <Button.Group space={3} justifyContent="center">
+        <Button
+          variant="ghost"
+          colorScheme="coolGray"
+          _text={{ color: 'gray.300', fontSize: 'md' }}
+          onPress={() => setIsPermissionModalVisible(false)}
+        >
+          Deny
+        </Button>
+        <Button
+          colorScheme="pink"
+          bg="pink.600"
+          _text={{ color: 'white', fontSize: 'md', fontWeight: 'bold' }}
+          px="6"
+          onPress={getUserLocation}
+        >
+          Allow
+        </Button>
+      </Button.Group>
+    </Modal.Footer>
+  </Modal.Content>
+</Modal>
+
         <VStack space={5}>
           <Input
             placeholder="Search stations..."
