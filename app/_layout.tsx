@@ -25,11 +25,25 @@ export default function RootLayout() {
     },
   });
   useEffect(() => {
-    if (fontsLoaded) {
-      const timer = setTimeout(() => setIsLoading(false), 5000);  // Show loading for 5 seconds
-      return () => clearTimeout(timer);
+    async function prepare() {
+      // Prevent the system splash screen from hiding automatically
+      await SplashScreen.preventAutoHideAsync();
+
+      if (fontsLoaded) {
+        // Simulate loading time (e.g., loading fonts, fetching data, etc.)
+        const timer = setTimeout(() => {
+          setIsLoading(false);
+          // Hide the system splash screen manually once the app is ready
+          SplashScreen.hideAsync();
+        }, 5000);  // Show loading for 5 seconds
+
+        return () => clearTimeout(timer);
+      }
     }
+
+    prepare();
   }, [fontsLoaded]);
+
 
   // Display loading screen if loading is true
   if (!fontsLoaded || isLoading) {

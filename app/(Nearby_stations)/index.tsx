@@ -291,13 +291,12 @@ const NearbyStationsScreen = () => {
           </Text>
         </VStack>
       </Pressable>
-      <Pressable onPress={() => toggleFavorite(item)}>
+      <Pressable onPress={() => toggleFavorite(item)} p="3"> 
         <Icon
           as={Ionicons}
           name={isFavorite(item.stationuuid) ? 'heart' : 'heart-outline'}
           size="6"
           color={selectedStation?.stationuuid === item.stationuuid ? 'white' : '#E91E63'}
-          ml="auto"
         />
       </Pressable>
     </HStack>
@@ -313,39 +312,41 @@ const NearbyStationsScreen = () => {
       <Box flex={1} p="4">
         <Text fontSize="2xl" fontWeight="bold" fontFamily="roboto-bold"color="white" mb="4">Nearby Stations</Text>
         <Modal isOpen={isPermissionModalVisible} onClose={() => setIsPermissionModalVisible(false)}>
-  <Modal.Content maxWidth="400px" bg="blueGray.800" borderRadius="lg" p="4" shadow="5">
-    <Modal.CloseButton _icon={{ color: 'white' }} />
-    <Modal.Header _text={{ color: 'white', fontSize: 'lg', fontWeight: 'bold' }} borderBottomWidth={0}>
-      Location Permission
-    </Modal.Header>
-    <Modal.Body>
-      <Text color="gray.200" fontSize="md" mb="4" textAlign="center">
-        We need access to your location to recommend nearby radio stations. Please allow location access.
-      </Text>
-    </Modal.Body>
-    <Modal.Footer borderTopWidth={0}>
-      <Button.Group space={3} justifyContent="center">
-        <Button
-          variant="ghost"
-          colorScheme="coolGray"
-          _text={{ color: 'gray.300', fontSize: 'md' }}
-          onPress={() => setIsPermissionModalVisible(false)}
-        >
-          Deny
-        </Button>
-        <Button
-          colorScheme="pink"
-          bg="pink.600"
-          _text={{ color: 'white', fontSize: 'md', fontWeight: 'bold' }}
-          px="6"
-          onPress={getUserLocation}
-        >
-          Allow
-        </Button>
-      </Button.Group>
-    </Modal.Footer>
-  </Modal.Content>
-</Modal>
+          <Modal.Content maxWidth="400px" bg="blueGray.800" borderRadius="lg" p="4" shadow="5">
+            <Modal.CloseButton _icon={{ color: 'white', size: 'lg' }} /> {/* Increase size for accessibility */}
+            <Modal.Header _text={{ color: 'white', fontSize: 'lg', fontWeight: 'bold' }} borderBottomWidth={0}>
+              Location Permission
+            </Modal.Header>
+            <Modal.Body>
+              <Text color="gray.200" fontSize="md" mb="4" textAlign="center">
+                We need access to your location to recommend nearby radio stations. Please allow location access.
+              </Text>
+            </Modal.Body>
+            <Modal.Footer borderTopWidth={0}>
+              <Button.Group space={3} justifyContent="center">
+                <Button
+                  variant="ghost"
+                  colorScheme="coolGray"
+                  _text={{ color: 'gray.300', fontSize: 'md' }}
+                  minW="48px" minH="48px" // Ensures minimum touch target size
+                  onPress={() => setIsPermissionModalVisible(false)}
+                >
+                  Deny
+                </Button>
+                <Button
+                  colorScheme="pink"
+                  bg="pink.600"
+                  _text={{ color: 'white', fontSize: 'md', fontWeight: 'bold' }}
+                  px="6"
+                  minW="48px" minH="48px" // Ensures minimum touch target size
+                  onPress={getUserLocation}
+                >
+                  Allow
+                </Button>
+              </Button.Group>
+            </Modal.Footer>
+          </Modal.Content>
+        </Modal>
 
         <VStack space={5}>
           <Input
