@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { FlatList, ActivityIndicator, Alert } from 'react-native';
-import { Box, Text, VStack, HStack, Icon, Pressable, Input, Image, Modal, Button } from 'native-base';
+import { Box, Text, VStack, HStack, Icon, Pressable, Input, Image, Modal, Button, ScrollView } from 'native-base';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Location from 'expo-location';
-import { reverseGeocodeAsync } from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRadioPlayer } from '@/components/RadioPlayerContext';
 import { InterstitialAd, AdEventType, TestIds } from 'react-native-google-mobile-ads';
@@ -19,7 +17,10 @@ interface Station {
   stationuuid: string;
   favicon?: string;
 }
-
+interface Language {
+  name: string;
+  stationcount: number;
+}
 const NearbyStationsScreen = () => {
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -30,10 +31,13 @@ const NearbyStationsScreen = () => {
   const [isNavigating, setIsNavigating] = useState<boolean>(false); 
   const router = useRouter();
   const { playRadio } = useRadioPlayer();
-  const [isPermissionModalVisible, setIsPermissionModalVisible] = useState<boolean>(false);
   const [navigationCount, setNavigationCount] = useState<number>(0);
   const [isAdLoaded, setIsAdLoaded] = useState<boolean>(false);
   const interstitialAd = useRef(InterstitialAd.createForAdRequest(TestIds.INTERSTITIAL)).current; 
+  const [isLanguageModalVisible, setIsLanguageModalVisible] = useState<boolean>(false);
+  const [languages, setLanguages] = useState<Language[]>([]);
+  const [loadingLanguages, setLoadingLanguages] = useState<boolean>(true);
+  const [languageSearchQuery, setLanguageSearchQuery] = useState<string>('')
   useEffect(() => {   
     loadFavorites();
     loadStoredLanguage();
@@ -65,6 +69,12 @@ const NearbyStationsScreen = () => {
       errorListener(); // Clean up the error listener
     };
   }, [interstitialAd]);
+  useEffect(() => {
+    if (isLanguageModalVisible) {
+      fetchLanguages();
+    }
+  }, [isLanguageModalVisible]);
+  
   const loadStoredLanguage = async () => {
     try {
       const language = await AsyncStorage.getItem('preferredLanguage');
@@ -72,85 +82,48 @@ const NearbyStationsScreen = () => {
         setStoredLanguage(language);
         fetchStationsByLanguage(language);
       } else {
-        setIsPermissionModalVisible(true); // Show modal if no language is stored
+        setStoredLanguage('English'); // Default to 'English' if no stored language
+        fetchStationsByLanguage('English');
+       setIsLanguageModalVisible(true);
+       fetchLanguages();
       }
     } catch (error) {
       console.error('Error loading stored language:', error);
+      setStoredLanguage('English');
+      fetchStationsByLanguage('English');
     }
   };
-
-  const getUserLocation = async () => {
+  const fetchLanguages = async () => {
+    setLoadingLanguages(true); // Set loading to true when starting to fetch languages
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission denied', 'Location permission is needed to fetch nearby radio stations');
-        return;
-      }
-      setIsPermissionModalVisible(false); // Hide modal after permission is granted
-      const location = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = location.coords;
+      const response = await fetch('https://de1.api.radio-browser.info/json/languages');
+      const languagesData: Language[] = await response.json();
 
-      const reverseGeocodedLocation = await reverseGeocodeAsync({ latitude, longitude });
-      if (reverseGeocodedLocation.length > 0) {
-        const locationDetails = reverseGeocodedLocation[0];
-        fetchStationsByLocation(locationDetails.country, locationDetails.region, locationDetails.isoCountryCode);
-      } else {
-        Alert.alert('Location Error', 'Unable to fetch location details.');
-        setLoading(false);
-      }
+      const languagesWithCounts = languagesData
+        .filter((language) => language.name && language.stationcount)
+        .map((language) => ({
+          name: language.name,
+          stationcount: language.stationcount,
+        }));
+      languagesWithCounts.sort((a, b) => b.stationcount - a.stationcount);
+      setLanguages(languagesWithCounts);
     } catch (error) {
-      console.error("Error getting user location:", error);
-      Alert.alert('Error', 'Could not fetch location or language.');
-      setLoading(false);
-    }
-  };
-  const fetchStationsByLocation = async (country: string | null, state: string | null, isoCountryCode: string | null) => {
-    setLoading(true);
-    try {
-      if (!country) {
-        Alert.alert('Error', 'Country information is missing.');
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch(`https://de1.api.radio-browser.info/json/stations/bycountry/${country}`);
-      const data: Station[] = await response.json();
-
-      const stateFilteredStations = data.filter((station) => station.state === state);
-      const stationsToSet = stateFilteredStations.length > 0 ? stateFilteredStations : data;
-
-      const stationLanguage = stationsToSet[0]?.language || null;
-      if (stationLanguage) {
-        await AsyncStorage.setItem('preferredLanguage', stationLanguage);
-        setStoredLanguage(stationLanguage);
-      }
-
-      let languageStations: Station[] = [];
-      if (stationLanguage) {
-        const languageResponse = await fetch(`https://de1.api.radio-browser.info/json/stations/bylanguage/${stationLanguage}`);
-        languageStations = await languageResponse.json();
-      }
-      
-      const combinedStations = [...stationsToSet, ...languageStations];
-      const uniqueStations = Array.from(new Map(combinedStations.map(station => [station.stationuuid, station])).values());
-
-      uniqueStations.sort((a, b) => b.votes - a.votes);
-      setStations(uniqueStations);
-    } catch (error) {
-      console.error("Error fetching stations by location and language:", error);
-      Alert.alert('Error', 'Could not fetch radio stations.');
+      console.error('Error fetching languages:', error);
+      Alert.alert('Error', 'Could not load languages.');
     } finally {
-      setLoading(false);
+      setLoadingLanguages(false); // Set loading to false after fetching languages
     }
   };
+
 
   const fetchStationsByLanguage = async (language: string) => {
     setLoading(true);
     try {
       const response = await fetch(`https://de1.api.radio-browser.info/json/stations/bylanguage/${language}`);
       const data: Station[] = await response.json();
-      data.sort((a, b) => b.votes - a.votes); 
-      setStations(data);
+      const shuffledStations = shuffleArray(data);
+      setStations(shuffledStations);
+     
     } catch (error) {
       console.error('Error fetching stations by language:', error);
       Alert.alert('Error', 'Could not fetch radio stations by language.');
@@ -209,11 +182,18 @@ const NearbyStationsScreen = () => {
       setLoading(false);
     }
   };
-
+  const shuffleArray = (array: any[]) => {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]]; // Swap elements
+    }
+    return array;
+  };
+  
   const handleSearch = (text: string) => {
     setSearchQuery(text);
     if (text.trim() === '') {      
-      fetchStationsByLanguage(storedLanguage); // Use stored language if search is cleared
+      fetchStationsByLanguage(storedLanguage || 'English'); 
     } else {
       fetchStationsBySearchQuery(text);
     }
@@ -262,7 +242,36 @@ const NearbyStationsScreen = () => {
          setIsNavigating(false);
     }
 };
+const handleLanguageSelection = async (selectedLanguage: string | null) => {
+  // If no language is selected, default to "English"
+  const languageToFetch = selectedLanguage || 'English';
 
+  setIsLanguageModalVisible(false);
+  await fetchStationsByLanguage(languageToFetch);
+  setStoredLanguage(languageToFetch);
+  await AsyncStorage.setItem('preferredLanguage', languageToFetch); // Store selected language
+};
+
+
+const filteredLanguages = languages.filter((language) =>
+  language.name.toLowerCase().includes(languageSearchQuery.toLowerCase())
+);
+const renderItem = ({ item }) => (
+  <Pressable onPress={() => handleLanguageSelection(item.name)}>
+    <HStack justifyContent="space-between" py="2">
+      <Text fontSize="md" color="white">{item.name}</Text>
+      <Text fontSize="sm" color="gray.500">{item.stationcount} stations</Text>
+    </HStack>
+  </Pressable>
+);
+// Render each language item
+const renderLanguageItem = ({ item }: { item: string }) => (
+  <Pressable onPress={() => handleLanguageSelection(item)} p="3" mb="2" bg="blueGray.700" borderRadius="md">
+    <Text color="white" fontSize="md" textAlign="center">
+      {item}
+    </Text>
+  </Pressable>
+);
 
   const renderStationItem = useCallback(({ item }: { item: Station }) => (
     <HStack
@@ -291,13 +300,12 @@ const NearbyStationsScreen = () => {
           </Text>
         </VStack>
       </Pressable>
-      <Pressable onPress={() => toggleFavorite(item)}>
+      <Pressable onPress={() => toggleFavorite(item)} p="3"> 
         <Icon
           as={Ionicons}
           name={isFavorite(item.stationuuid) ? 'heart' : 'heart-outline'}
           size="6"
           color={selectedStation?.stationuuid === item.stationuuid ? 'white' : '#E91E63'}
-          ml="auto"
         />
       </Pressable>
     </HStack>
@@ -310,42 +318,67 @@ const NearbyStationsScreen = () => {
       end={{ x: 1, y: 1 }}
       style={{ flex: 1 }}
     >
-      <Box flex={1} p="4">
-        <Text fontSize="2xl" fontWeight="bold" fontFamily="roboto-bold"color="white" mb="4">Nearby Stations</Text>
-        <Modal isOpen={isPermissionModalVisible} onClose={() => setIsPermissionModalVisible(false)}>
-  <Modal.Content maxWidth="400px" bg="blueGray.800" borderRadius="lg" p="4" shadow="5">
-    <Modal.CloseButton _icon={{ color: 'white' }} />
-    <Modal.Header _text={{ color: 'white', fontSize: 'lg', fontWeight: 'bold' }} borderBottomWidth={0}>
-      Location Permission
-    </Modal.Header>
-    <Modal.Body>
-      <Text color="gray.200" fontSize="md" mb="4" textAlign="center">
-        We need access to your location to recommend nearby radio stations. Please allow location access.
-      </Text>
-    </Modal.Body>
-    <Modal.Footer borderTopWidth={0}>
-      <Button.Group space={3} justifyContent="center">
-        <Button
-          variant="ghost"
-          colorScheme="coolGray"
-          _text={{ color: 'gray.300', fontSize: 'md' }}
-          onPress={() => setIsPermissionModalVisible(false)}
+      <Box flex={1} p="4">     
+      <Text fontSize="2xl" fontWeight="bold" fontFamily="roboto-bold" color="white" mb="4">Nearby Stations</Text>
+      <Button
+          onPress={() => setIsLanguageModalVisible(true)}
+          bg="blueGray.700"
+          mb="4"
+          colorScheme="blue"
+          leftIcon={<Icon as={Ionicons} name="language" size="5" color="white" />}
         >
-          Deny
+          Choose Language
         </Button>
-        <Button
-          colorScheme="pink"
-          bg="pink.600"
-          _text={{ color: 'white', fontSize: 'md', fontWeight: 'bold' }}
-          px="6"
-          onPress={getUserLocation}
-        >
-          Allow
-        </Button>
-      </Button.Group>
-    </Modal.Footer>
-  </Modal.Content>
-</Modal>
+        <Modal isOpen={isLanguageModalVisible} onClose={() => setIsLanguageModalVisible(false)}>
+      <Modal.Content maxWidth="400px" bg="blueGray.800" borderRadius="lg" p="4" shadow="5">
+        <Modal.Header textAlign="center" _text={{ color: '#E91E63', fontWeight: 'bold' }}>
+          Select Language
+        </Modal.Header>
+        
+      
+        <FlatList
+          data={loadingLanguages ? [{ loading: true }] : filteredLanguages}
+          keyExtractor={(item) => item.name || "loading"}
+          renderItem={({ item }) => {
+            if (item.loading) {
+              return (
+                <Box flex={1} justifyContent="center" alignItems="center">
+                  <ActivityIndicator size="large" color="#E91E63" />
+                  <Text color="white" mt="4">Loading languages...</Text>
+                </Box>
+              );
+            }
+            return renderItem({ item });
+          }}
+          ListHeaderComponent={
+            <Input
+              placeholder="Search for a language..."
+              value={languageSearchQuery}
+              onChangeText={setLanguageSearchQuery}
+              mb="4"
+              bg="blueGray.700"
+              borderRadius="md"
+              color="white"
+            />
+          }
+          ListEmptyComponent={<Text color="white">No languages found.</Text>}
+          showsVerticalScrollIndicator={false}
+        />
+
+        <Modal.Footer>
+          <Button
+            bg="blueGray.700"
+            onPress={() => setIsLanguageModalVisible(false)}
+            colorScheme="blue"
+          >
+            Cancel
+          </Button>
+        </Modal.Footer>
+      </Modal.Content>
+    </Modal>
+
+
+
 
         <VStack space={5}>
           <Input

@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FlatList } from 'react-native';
 import { Box, Text, VStack, HStack, Pressable, Image, Icon } from 'native-base';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRadioPlayer } from '@/components/RadioPlayerContext';
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { InterstitialAd, AdEventType, TestIds } from 'react-native-google-mobile-ads';
 
@@ -18,20 +19,13 @@ interface Station {
 }
 
 const FavoritesScreen = () => {
-  // State management for favorite stations, loading state, and ad setup
   const [favoriteStations, setFavoriteStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const { playRadio, selectedStation } = useRadioPlayer();
   const [navigationCount, setNavigationCount] = useState<number>(0);
   const [isAdLoaded, setIsAdLoaded] = useState<boolean>(false);
 
-  // Set up interstitial ad instance
   const interstitialAd = useRef(InterstitialAd.createForAdRequest(TestIds.INTERSTITIAL)).current;
-
-  // Load favorite stations from AsyncStorage on component mount
-  useEffect(() => {
-    loadFavorites();
-  }, []);
 
   // Async function to fetch and set favorite stations
   const loadFavorites = async () => {
@@ -48,21 +42,24 @@ const FavoritesScreen = () => {
     }
   };
 
-  // Initialize and manage interstitial ad behavior
+  // Reload favorites whenever the screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadFavorites(); // Re-fetch the favorite stations when screen is focused
+    }, [])
+  );
+
   useEffect(() => {
     const loadAd = () => interstitialAd.load();
-
-    // Set up ad event listeners for ad load and close events
     const adLoadListener = interstitialAd.addAdEventListener(AdEventType.LOADED, () => setIsAdLoaded(true));
     const adCloseListener = interstitialAd.addAdEventListener(AdEventType.CLOSED, () => {
       setIsAdLoaded(false);
-      interstitialAd.load(); // Preload the next ad
+      interstitialAd.load();
     });
     const adErrorListener = interstitialAd.addAdEventListener(AdEventType.ERROR, (error) => console.error('Error loading ad:', error));
 
     loadAd();
 
-    // Clean up ad event listeners on component unmount
     return () => {
       adLoadListener();
       adCloseListener();
@@ -70,17 +67,14 @@ const FavoritesScreen = () => {
     };
   }, [interstitialAd]);
 
-  // Handle station selection, manage navigation count, and show ad if applicable
   const handleStationSelect = (station: Station) => {
     playRadio(station);
     setNavigationCount((prevCount) => prevCount + 1);
 
-    // Show ad every second navigation if loaded
     if (navigationCount % 2 === 1 && interstitialAd.loaded) {
       interstitialAd.show();
     }
-   console.log("fav stations:", favoriteStations)
-    // Navigate to the player screen with selected station and favorite stations as params
+
     router.push({
       pathname: '/(player)',
       params: {
@@ -90,7 +84,6 @@ const FavoritesScreen = () => {
     });
   };
 
-  // Render a station item in the list
   const renderStationItem = ({ item }: { item: Station }) => (
     <Pressable onPress={() => handleStationSelect(item)} p="2" mb="2" bg="white" borderRadius="lg" shadow="2">
       <HStack alignItems="center">
@@ -132,7 +125,6 @@ const FavoritesScreen = () => {
             renderItem={renderStationItem}
           />
         ) : (
-          // Fallback UI for when there are no favorite stations
           <Box flex={1} justifyContent="center" alignItems="center">
             <Text fontSize="lg" color="white" fontFamily="roboto-light" textAlign="center">
               No favorite stations added yet. Start exploring and add your favorite stations!

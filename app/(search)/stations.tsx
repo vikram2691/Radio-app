@@ -21,49 +21,75 @@ const StationsScreen = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [favorites, setFavorites] = useState<Station[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false); // New state for loading more stations
   const [isNavigating, setIsNavigating] = useState<boolean>(false);
+  const [page, setPage] = useState<number>(1); // New state to track page number for pagination
+  const [hasMore, setHasMore] = useState<boolean>(true); // Track if more data is available
 
   const { country, language, genre } = useLocalSearchParams<{ country?: string; language?: string; genre?: string }>();
   const router = useRouter();
   const { playRadio } = useRadioPlayer();
- 
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fetch stations data
-  const fetchStations = useCallback(async (type: string, query: string) => {
-    setLoading(true);
+  // Fetch stations data with pagination
+  const fetchStations = useCallback(async (type: string, query: string, reset = false) => {
+    setLoading(reset); // Show loading spinner if it's the first page
+    setLoadingMore(!reset); // Show loading indicator for additional pages
     try {
-          const response = await fetch(`https://de1.api.radio-browser.info/json/stations/${type}/${query}?limit=1000&order=votes&reverse=true`);
+      const response = await fetch(`https://de1.api.radio-browser.info/json/stations/${type}/${query}?limit=20&offset=${(page - 1) * 20}&order=votes&reverse=true`);
       const data: Station[] = await response.json();
-      setStations(data);
-     
+      
+      if (reset) {
+        setStations(data); // Reset data if starting a new search
+      } else {
+        setStations(prevStations => [...prevStations, ...data]); // Append new data for lazy loading
+      }
+      
+      setHasMore(data.length > 0); // Check if there are more items to load
     } catch (error) {
       console.error(`Error fetching stations by ${type}:`, error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, []);
+  }, [page]);
 
-  const fetchStationsBySearchQuery = useCallback(async (query: string) => {
-    setLoading(true);
+  const fetchStationsBySearchQuery = useCallback(async (query: string, reset = false) => {
+    setLoading(reset);
+    setLoadingMore(!reset);
     try {
-      const response = await fetch(`https://de1.api.radio-browser.info/json/stations/search?name=${query}`);
+      const response = await fetch(`https://de1.api.radio-browser.info/json/stations/search?name=${query}&limit=20&offset=${(page - 1) * 20}`);
       const data: Station[] = await response.json();
-      setStations(data);
+      
+      if (reset) {
+        setStations(data);
+      } else {
+        setStations(prevStations => [...prevStations, ...data]);
+      }
+      
+      setHasMore(data.length > 0);
     } catch (error) {
       console.error('Error fetching stations by search query:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, []);
+  }, [page]);
 
   // Debounced search logic
   useEffect(() => {
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
     searchTimeoutRef.current = setTimeout(() => {
-      searchQuery ? fetchStationsBySearchQuery(searchQuery) : country ? fetchStations('bycountry', country) : language ? fetchStations('bylanguage', language) : genre && fetchStations('bytag', genre);
+      if (searchQuery) {
+        fetchStationsBySearchQuery(searchQuery, true);
+        setPage(1); // Reset page number on new search
+      } else {
+        const type = country ? 'bycountry' : language ? 'bylanguage' : genre ? 'bytag' : '';
+        fetchStations(type, country || language || genre || '', true);
+        setPage(1);
+      }
     }, 300);
 
     return () => {
@@ -72,9 +98,15 @@ const StationsScreen = () => {
   }, [searchQuery, country, language, genre, fetchStations, fetchStationsBySearchQuery]);
 
   useEffect(() => {
-    country ? fetchStations('bycountry', country) : language ? fetchStations('bylanguage', language) : genre && fetchStations('bytag', genre);
     loadFavorites();
-  }, [country, language, genre, fetchStations]);
+  }, []);
+
+  // Load more stations on reaching end of list
+  const loadMoreStations = () => {
+    if (hasMore && !loadingMore && !loading) {
+      setPage(prevPage => prevPage + 1);
+    }
+  };
 
   // Manage favorites
   const loadFavorites = async () => {
@@ -109,7 +141,6 @@ const StationsScreen = () => {
     setIsNavigating(true);
     try {
       await playRadio(station);
-
       const selectedIndex = stations.findIndex(s => s.stationuuid === station.stationuuid);
       const nearbyStations = stations.slice(Math.max(0, selectedIndex - 10), Math.min(stations.length, selectedIndex + 10 + 1));
 
@@ -130,29 +161,28 @@ const StationsScreen = () => {
     const isFavorite = favorites.some(fav => fav.stationuuid === item.stationuuid);
 
     return (
-        <Pressable onPress={() => handleStationSelect(item)} p="2" mb="2" bg="white" borderRadius="lg" shadow="2">
-            <HStack alignItems="center" justifyContent="space-between"> 
-                <HStack alignItems="center"> 
-                    <Image
-                        source={item.favicon ? { uri: item.favicon } : require('@/assets/images/rolex_radio.png')}
-                        alt={item.name}
-                        size="50px"
-                        borderRadius="full"
-                        mr="4"
-                    />
-                    <VStack>
-                        <Text fontSize="lg" fontFamily="roboto-light" fontWeight="bold" color="#E91E63">{item.name}</Text>
-                        <Text fontSize="md" fontFamily="roboto-light" color="gray.500">{item.country} - {item.language}</Text>
-                    </VStack>
-                </HStack>
-                <Pressable onPress={() => toggleFavorite(item)}>
-                    <Icon as={Ionicons} name={isFavorite ? 'heart' : 'heart-outline'} size="6" color="#E91E63" />
-                </Pressable>
-            </HStack>
-        </Pressable>
+      <Pressable onPress={() => handleStationSelect(item)} p="2" mb="2" bg="white" borderRadius="lg" shadow="2">
+        <HStack alignItems="center" justifyContent="space-between"> 
+          <HStack alignItems="center"> 
+            <Image
+              source={item.favicon ? { uri: item.favicon } : require('@/assets/images/rolex_radio.png')}
+              alt={item.name}
+              size="50px"
+              borderRadius="full"
+              mr="4"
+            />
+            <VStack>
+              <Text fontSize="lg" fontFamily="roboto-light" fontWeight="bold" color="#E91E63">{item.name}</Text>
+              <Text fontSize="md" fontFamily="roboto-light" color="gray.500">{item.country} - {item.language}</Text>
+            </VStack>
+          </HStack>
+          <Pressable onPress={() => toggleFavorite(item)}>
+            <Icon as={Ionicons} name={isFavorite ? 'heart' : 'heart-outline'} size="6" color="#E91E63" />
+          </Pressable>
+        </HStack>
+      </Pressable>
     );
-};
-
+  };
 
   return (
     <LinearGradient colors={['#145DA0', '#E91E63']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1 }}>
@@ -190,7 +220,10 @@ const StationsScreen = () => {
             maxToRenderPerBatch={10}
             windowSize={21}
             removeClippedSubviews
+            onEndReached={loadMoreStations} // Trigger lazy loading
+            onEndReachedThreshold={0.5} // Fetch more data when halfway through the list
             getItemLayout={(data, index) => ({ length: 80, offset: 80 * index, index })}
+            ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#E91E63" /> : null} // Show loading spinner at the end of the list
           />
         ) : (
           <Box flex={1} justifyContent="center" alignItems="center">
