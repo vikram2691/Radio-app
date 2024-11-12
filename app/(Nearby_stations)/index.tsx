@@ -79,6 +79,37 @@ const NearbyStationsScreen = () => {
     }
   };
 
+  const handleModalNoPress = () => {
+    // User denied location permission, fetch top stations randomly
+    setIsPermissionModalVisible(false); // Close the permission modal
+    fetchTopStationsRandomly(); // Fetch top stations randomly
+  };
+  
+  const fetchTopStationsRandomly = async () => {
+    setLoading(true);
+    try {
+      // Fetch top stations (sorted by votes, no language filter)
+      const response = await fetch(`https://de1.api.radio-browser.info/json/stations`);
+      const data: Station[] = await response.json();
+  
+      // Sort by votes
+      data.sort((a, b) => b.votes - a.votes);
+  
+      // Shuffle the stations randomly
+      const shuffledStations = data.sort(() => Math.random() - 0.5);
+  
+      // Limit the number of stations (optional, if you want to show only top N)
+      const topStations = shuffledStations.slice(0, 20); // Example: top 20 stations
+  
+      setStations(topStations); // Set the shuffled stations as the state
+    } catch (error) {
+      console.error("Error fetching top stations:", error);
+      Alert.alert('Error', 'Could not fetch top stations.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getUserLocation = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -329,7 +360,7 @@ const NearbyStationsScreen = () => {
                   colorScheme="coolGray"
                   _text={{ color: 'gray.300', fontSize: 'md' }}
                   minW="48px" minH="48px" // Ensures minimum touch target size
-                  onPress={() => setIsPermissionModalVisible(false)}
+                  onPress={handleModalNoPress} 
                 >
                   Deny
                 </Button>
