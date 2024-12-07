@@ -26,7 +26,7 @@ const RecentlyPlayedScreen: React.FC = () => {
   const { playRadio } = useRadioPlayer();
   const navigation = useNavigation();
 
-  const interstitialAd = useRef(InterstitialAd.createForAdRequest(TestIds.INTERSTITIAL)).current;
+  const interstitialAd = useRef(InterstitialAd.createForAdRequest("ca-app-pub-2271509461492480/5720684863")).current;
 
   useEffect(() => {
     const loadAd = () => interstitialAd.load();

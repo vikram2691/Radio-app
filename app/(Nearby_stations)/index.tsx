@@ -33,7 +33,7 @@ const NearbyStationsScreen = () => {
   const { playRadio } = useRadioPlayer();
   const [navigationCount, setNavigationCount] = useState<number>(0);
   const [isAdLoaded, setIsAdLoaded] = useState<boolean>(false);
-  const interstitialAd = useRef(InterstitialAd.createForAdRequest(TestIds.INTERSTITIAL)).current; 
+  const interstitialAd = useRef(InterstitialAd.createForAdRequest("ca-app-pub-2271509461492480/9903351347")).current; 
   const [isLanguageModalVisible, setIsLanguageModalVisible] = useState<boolean>(false);
   const [languages, setLanguages] = useState<Language[]>([]);
   const [loadingLanguages, setLoadingLanguages] = useState<boolean>(true);
