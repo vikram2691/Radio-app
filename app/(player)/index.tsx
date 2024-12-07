@@ -38,7 +38,7 @@ const PlayerScreen: React.FC = () => {
   const { isPlaying, togglePlayPause, switchStation, isBuffering } = useRadioPlayer();
 
   // Ads state and setup
-  const interstitialAd = useRef(InterstitialAd.createForAdRequest(TestIds.INTERSTITIAL)).current;
+  const interstitialAd = useRef(InterstitialAd.createForAdRequest("ca-app-pub-2271509461492480/9600882836")).current;
   const [isAdLoaded, setIsAdLoaded] = useState<boolean>(false);
   const stationSwitchCountRef = useRef<number>(0); // Ref to track station switches
 
@@ -176,7 +176,7 @@ const PlayerScreen: React.FC = () => {
       >
         <View style={styles.bannerAdContainer}>
         <BannerAd
-  unitId={TestIds.BANNER}
+  unitId={"ca-app-pub-2271509461492480/6204461678"}
   size={BannerAdSize.BANNER}
   onAdLoaded={() => console.log('Banner ad loaded')}
   onAdFailedToLoad={(error) => {
@@ -206,7 +206,7 @@ const PlayerScreen: React.FC = () => {
     >
       <View style={styles.bannerAdContainer}>
         <BannerAd
-          unitId={TestIds.BANNER}
+          unitId={"ca-app-pub-2271509461492480/6204461678"}
           size={BannerAdSize.FULL_BANNER}
           onAdLoaded={() => console.log('Banner ad loaded')}
           onAdFailedToLoad={(error) => console.error('Banner ad failed to load:', error)}

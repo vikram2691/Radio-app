@@ -25,7 +25,7 @@ const FavoritesScreen = () => {
   const [navigationCount, setNavigationCount] = useState<number>(0);
   const [isAdLoaded, setIsAdLoaded] = useState<boolean>(false);
 
-  const interstitialAd = useRef(InterstitialAd.createForAdRequest(TestIds.INTERSTITIAL)).current;
+  const interstitialAd = useRef(InterstitialAd.createForAdRequest("ca-app-pub-2271509461492480/4563515866")).current;
 
   // Async function to fetch and set favorite stations
   const loadFavorites = async () => {

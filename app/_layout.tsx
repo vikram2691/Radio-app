@@ -125,7 +125,7 @@ export default function RootLayout() {
             />
           </Tabs>
           <BannerAd
-            unitId="ca-app-pub-3940256099942544/6300978111"
+            unitId="ca-app-pub-2271509461492480/3312496061"
             size={BannerAdSize.FULL_BANNER}
            
             onAdLoaded={() => {
